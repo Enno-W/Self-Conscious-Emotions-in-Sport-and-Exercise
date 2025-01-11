@@ -1,0 +1,96 @@
+---
+title: "My Title"
+shorttitle: "Short Title in Running Header"
+author:
+  - name: Jane Doe
+    corresponding: true
+    orcid: 0000-0000-0000-0001
+    email: janedoe@generic.edu
+    affiliations:
+      - name: Generic University
+        department: Department of Scholarly Studies
+        address: 1234 Capital St.
+        city: New York
+        region: NY
+        country: USA
+        postal-code: 12084-1234
+author-note:
+  status-changes: 
+    affiliation-change: ~
+    deceased: ~
+  disclosures:
+    study-registration: ~
+    data-sharing: ~
+    related-report: ~
+    conflict-of-interest: ~
+    financial-support: ~
+    gratitude: ~
+    authorship-agreements: ~
+abstract: "This document is a template."
+keywords: [keyword1, keyword2, keyword3]
+bibliography: bibliography.bib
+format:
+  apaquarto-html: default
+  apaquarto-docx: default
+  apaquarto-pdf:
+    documentmode: man
+---
+```{r functions and packages}
+#| echo: false
+#| eval: true 
+#| output: false
+
+if (!requireNamespace("needs", quietly = TRUE)) {
+  install.packages("needs")
+}
+library(needs)
+needs(xfun, tidyverse, remotes, devtools)
+
+
+```
+
+```{r citations}
+#| echo: false
+#| eval: true 
+#| output: false
+# 
+ if (!requireNamespace("excelbib", quietly = TRUE)) { 
+ xfun::install_github("Enno-W/excelbib") 
+} 
+library(excelbib)
+
+# Create .bib file from the excel list
+xlsx_to_bib("https://ennosgermancourse-my.sharepoint.com/:x:/g/personal/enno_winkler_spb-ew_de/EW6a1Bf5neVCiV093GnE50cBua9opdSdBBOA-3flEFrdxA?download=1")
+```
+
+
+```{r data import and manipulation}
+
+```
+# Method
+[@Lautenbach2021]
+
+## Participants
+
+## Measures
+
+## Procedure
+
+# Results
+
+# Discussion
+
+## Limitations and Future Directions
+
+## Conclusion
+
+# References
+
+<!-- References will auto-populate in the refs div below -->
+
+::: {#refs}
+:::
+
+# Appendix
+
+# Title for Appendix
