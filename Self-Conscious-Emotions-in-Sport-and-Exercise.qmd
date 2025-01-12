@@ -36,8 +36,10 @@ format:
   apaquarto-pdf:
     documentmode: man
     
-    
+comments:
+  hypothesis: true
 ---
+
 ```{r packages}
 #| echo: false
 #| eval: true 
@@ -47,7 +49,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest)
 
 
 ```
@@ -423,7 +425,7 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 ```{r data import and manipulation}
 load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/241021PRIMOCA_data.Rdata?raw=true"))
 
-sum(is.na(df))
+original_data_missings_amount<-sum(is.na(df))
 #### counting excluded participants ####
 raw_data_n <-nrow(df)
 
@@ -436,9 +438,6 @@ df_filtered$Missings_amount <- rowSums(is.na(df_filtered))
 df_less_na<-df_filtered %>% filter(Missings_amount<50)#removing participants with more than 50 missings
 na_removed_n <-nrow(df_less_na)
 df<-df_less_na
-
-#### Removing Variables that are not considered in this thesis ####
-#df<- df %>% select(!matches("_fear|_hope|Achievement|Affiliation|Power|Programme|Pride|Hubris"))
 
 #### Grouping the different kinds of sports and goals ####
 df$Sport2 <- NA
@@ -483,7 +482,7 @@ is.training.completed <- function(x) {
     return("Yes!")
   }
 }
-# Running that whole thing through a for loop
+#Running that whole thing through a for loop
 for (i in 1:6) {
   goal_col <- paste0("Goal_", i)
   newvar_col <- paste0("complete.", i)
@@ -513,12 +512,12 @@ for (i in 1:6) {
 # count the number of "Yes!"es in those
 df$completed_count<- apply(select(df, starts_with(match = "complete_")), 1, function(x) length(which(x=="Yes!"))) # the "1" stands for rows here. see https://stackoverflow.com/questions/24015557/count-occurrences-of-value-in-a-set-of-variables-in-r-per-row
 
-####Multiple imputation####
-imp <- mice(df, m=5, maxit=5, method="pmm") # number of multiple imputations, maximum iterations, method: predictive mean matching
-# https://bookdown.org/mwheymans/bookmi/multiple-imputation.html#multiple-imputation-in-r
-df<-complete(imp)
-
-
+# ####Multiple imputation####
+# #imp <- mice(df, m=5, maxit=5, method="pmm") # number of multiple imputations, maximum iterations, method: predictive mean matching
+# # https://bookdown.org/mwheymans/bookmi/multiple-imputation.html#multiple-imputation-in-r
+# #df<-complete(imp)
+# 
+#load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/df_imputed.Rdata?raw=true"))# outcomment this to NOT use imputation
 #####Convert Data to long format#####
 weekly_measures<-select(df, matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
@@ -625,15 +624,15 @@ pwr_result <- pwr.r.test(n = NULL,
 
 ###ICC####
 # Nullmodell
-null_model_goal<- lme(Goal ~ 1, 
+null_model_km<- lme(SessionKM ~ 1, 
                       data=long_df, 
                       random= ~1|ID, 
                       method="ML", 
                       na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
 # The "1" stands for the "intercept"
 #The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
-summary(null_model_goal)
-icc_goal<--performance::icc(null_model_goal) # The ICC is a lot lower with multiple imputation
+summary(null_model_km)
+icc_goal<--performance::icc(null_model_km)
 
 ###Centering###
 #Center the time varying predictors to disentangle the repeated measurements from PA and NA traits
@@ -641,72 +640,56 @@ long_df$PositiveAffect_centered <- long_df$PositiveAffect - ave(long_df$Positive
 long_df$NegativeAffect_centered <- long_df$NegativeAffect - ave(long_df$NegativeAffect, long_df$ID, FUN = mean)
 
 ### Hierarchical Linear Models ####
-
-library(nlme)
-
+long_df$ID<-long_df$ID %>% as.factor()
+### km model with nlme()
 model_SessionKM <- lme(
   fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
   random = ~ 1 | ID,
-  data = long_df
+   correlation = corAR1(form = ~ Time | ID),
+  data = long_df, 
+  na.action=na.omit
 )
+summary(model_SessionKM)
 
+# km model with lme4
+model_SessionKM_lme4<- lme4::lmer(SessionKM~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * 
+Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 
-goal_model_basic_pa <- lme(
-  Goal ~ 1 + Time + Locus + Dynamics +  NegativeAffect+ PositiveAffect,
-  data = long_df,
-  random = ~ 1| ID,
-  method = "ML",
-  na.action = na.omit,
-  correlation = corAR1(form = ~ Time | ID)
-)
-summary(goal_model_basic_pa)
-anova(goal_model_raw, goal_model_basic_pa)
+model_with_pvals <- as_lmerModLmerTest(model_SessionKM_lme4)
+summary(model_with_pvals)
+
 ### Table Output #####
-hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
+# hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
 
 
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
-goal_model_pa_residuals  <- hlm_resid(goal_model_basic_pa, level=1) # Funktion aus HLMdiag-Package
+model_SessionKM_residuals  <- hlm_resid(model_SessionKM, level=1, include.ls = T) # Funktion aus HLMdiag-Package
 #Now, I use the "..._residuals" to make a graph. these are the "Least squares residuals", and they have the advantage that influences from level 2 and 1 are not mixed up. 
-ggplot(data = goal_model_pa_residuals , aes(.ls.resid)) +
+ggplot(data = model_SessionKM_residuals  , aes(.ls.resid)) +
   geom_histogram(aes(y = after_stat(density)), bins=10) +
   stat_function(fun = dnorm,
-                args = list(mean = mean(goal_model_pa_residuals $.ls.resid),
-                            sd = sd(goal_model_pa_residuals $.ls.resid)), linewidth=2) 
+                args = list(mean = mean(model_SessionKM_residuals  $.ls.resid),
+                            sd = sd(model_SessionKM_residuals  $.ls.resid)), linewidth=2) 
 
 ###### Shapiro test of normality ###############################################
 
 #### Test for the Attribution Model #####
-shaptest_goal_attrib <-shapiro.test(goal_model_pa_residuals $.ls.resid)  
+test_normality_model_SessionKM_residuals <-shapiro.test(model_SessionKM_residuals $.ls.resid)  
 
 ### Markdown Output of p value ####
-shaptest_goal_attrib_p <-if (shaptest_goal_attrib$p.value < 0.001) {
+test_normality_model_SessionKM_residuals_p <-if (test_normality_model_SessionKM_residuals$p.value < 0.001) {
   "< .001"
 } else {
   round( shaptest_goal_affect$p.value, 3)
 }
 
 ##### Testing for homoscedasticity and Outliers: The variance of residuals must be constant for all values####
-ggplot(data=goal_model_pa_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
+ggplot(data=model_SessionKM_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
   geom_point() # Weird linear patterns emerge: This means, homoscedasticity is violated. 
 # Outliers
-ggplot(data = goal_model_pa_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
-ggplot(data = goal_model_pa_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot() # per group, the outliers are pretty random and the width varies substantially between groups
-
-
-# Ausreißer
-ggplot(data = goal_model_pa_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
-ggplot(data = goal_model_pa_residuals , aes(x= .resid, y= as.factor(ID))) + theme_gray() + geom_boxplot()
-# Assumptions of normality and homoscedasticity are violated. Possible solutions could come from "robustlmm" package - to deal with "contamination", or using robust standard errors with "clubSandwich" and lme4
-
-
-# Ausreißer
-ggplot(data = goal_model_pa_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
-ggplot(data = goal_model_pa_residuals , aes(x= .resid, y= as.factor(ID))) + theme_gray() + geom_boxplot()
-# Assumptions of normality and homoscedasticity are violated. Possible solutions could come from "robustlmm" package - to deal with "contamination", or using robust standard errors with "clubSandwich" and lme4
-
-
+ggplot(data = model_SessionKM_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
+ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot() # per group, the outliers are pretty random and the width varies substantially between groups
 
 ```
 
@@ -715,66 +698,131 @@ ggplot(data = goal_model_pa_residuals , aes(x= .resid, y= as.factor(ID))) + them
 #| eval: true 
 #| output: false
 
-print_all_histograms(df, bins_n = 30)
-print_all_histograms(df[correlation_variables])
-custom_labels<-c(
-  Age = "Alter",
-  Locus = "Locus",
-  Dynamics = "Variabilität",
-  completed_count = "Abgeschlossene\nTrainingseinheiten",
-  Goal_ave = "Durchschnitt\nZiellerreichung",
-  SessionKM_ave = "Durchschnitt km pro Einheit",
-  SesseionH_ave = "Durchschnitt\nh pro Einheit",
-  SessionRPE_ave = "Durchschnitt\nSessionRPE",
-  NA_ave = "Durchschnitt\nNegativer Affekt",
-  WeeklyKM_base = "Baseline\nWöchentliche KM",
-  WeeklyH_base = "Baseline\nWöchentliche H",
-  WeeklyRPE_base = "Baseline\nWöchentliche RPE",
-  NA_base = "Baseline\nNegativer Affekt"
+
+custom_labels <- c(
+    "Pride_base" = "1. Pride", 
+    "Hubris_base" = "2. Hubris", 
+    "WeeklyKM_base" = "3. Weekly Training Distance (KM)", 
+    "WeeklyH_base" = "4. Weekly Training Hours", 
+    "WeeklyRPE_base" = "5. Weekly Training RPE", 
+    "PA_base" = "6. Positive Affect", 
+    "NA_base" = "7. Negative Affect", 
+    "Achievement" = "8. Achievement", 
+    "Affiliation" = "9. Affiliation", 
+    "Power" = "10. Power", 
+    "Gen_Success_hope" = "11. Hope for Success", 
+    "Gen_Failure_fear" = "12. Fear of Failure", 
+    "Gen_Belonging_hope" = "13. Hope for Belonging", 
+    "Gen_Rejection_fear" = "14. Fear of Rejection", 
+    "Gen_Control_hope" = "15. Hope for Control", 
+    "Gen_LossControl_fear" = "16. Fear of Loss of Control", 
+    "Locus" = "17. Locus", 
+    "Dynamics" = "18. Dynamics", 
+    "Controlability_self" = "19. Self-Controllability"
 )
 
-violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels
+#print_all_histograms(df, bins_n = 30)
+#print_all_histograms(df[correlation_variables])
+
+ violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
+
+
+ model_SessionKM <- lme(
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+   correlation = corAR1(form = ~ Time | ID),
+  data = long_df, 
+  na.action=na.omit
 )
+summary(model_SessionKM)
+long_df_filtered <- na.omit(long_df[, c(all.vars(formula(model_SessionKM)),"Time", "ID")])
+long_df_filtered$fitted_km <- fitted(model_SessionKM)
+long_df_filtered$fitted_km <- fitted(model_SessionKM)
 
-long_df$fitted_attribution <- fitted(goal_model_basic_pa)
 
-hlm_plot<-ggplot(long_df, aes(x = Time, y = fitted_attribution, group = ID, color = as.factor(ID))) +
+
+hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
   geom_line(show.legend = F)+
-  geom_point(aes(x= Time, y= Goal), show.legend = F)+
-  labs(x = "Time", y = "Fitted Goal", title = "Vorhergesagte Ziellerreichung nach ID") +
+  geom_point(aes(x= Time, y= SessionKM), show.legend = F)+
+  labs(x = "Time", y = "Fitted Goal", title = "Predicted KM by ID") +
   theme_minimal()+
   labs(
-    x = "Trainingseinheit Nr.",
-    y = "Wahrgenommene Zielerreichung",
+    x = "Session No. ",
+    y = "Running Distance",
     color = "ID"
   )
 
-time_plot<-plot_model(goal_model_basic_pa, type = "pred", terms = "Time", show.data = T, jitter = .2, grid = T ,axis.title = c("Trainingseinheit Nr.", "Wahrgenommene Zielerreichung"), title = "Vorhergesagte Ziellerreichung")
+time_plot<-plot_model(model_SessionKM, type = "pred", terms = "Time", show.data = T, jitter = .2, grid = T ,axis.title = c("Session No. ", "SessionKM"), title = "Running Distance")
 
 Plot_across_time <- hlm_plot+time_plot
 
-negative_affect_plot<-plot_model(goal_model_basic_pa, type = "pred", terms = "NegativeAffect", show.data = T, jitter = .2, grid = T, axis.title = c("Negative Affect", "Wahrgenommene Zielerreichung"), title = "Vorhergesagte Ziellerreichung durch NA")
-positive_affect_plot<-plot_model(goal_model_basic_pa, type = "pred", terms = "PositiveAffect", show.data = T, jitter = .2, grid = T, axis.title = c("Positive Affect", "Wahrgenommene Zielerreichung"), title = "Vorhergesagte Ziellerreichung durch PA")
+globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
 
-PA_NA_plot <-negative_affect_plot+positive_affect_plot
-Homoscedasticity_plot <-plot_model(goal_model_basic_pa, type = "diag") 
+# globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality", "Pride"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality") # Could refine with an interaction plot
 
+Homoscedasticity_plot <-plot_model(model_SessionKM, type = "diag") 
 
+str(df[, correlation_variables])
+correlation_coefficients<-cor(df[, correlation_variables], use = "pairwise.complete.obs")
 
+ggcorrplot(correlation_coefficients)
+heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type ="lower",  tl.srt = 90,  )+
+  scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
+  scale_y_discrete(labels = custom_labels)#https://www.youtube.com/watch?v=E3De2A73ako&t=1s
 ```
 
-
 # Method
-@kipchoge2020
-@rstudio2024
+
+@kipchoge2020 @rstudio2024
 
 ## Participants
+
+The participants were `r descriptives_list$Age_mean` old on average (*SD* = `r descriptives_list$Age_sd`) ranging from `r descriptives_list$Age_min` to `r descriptives_list$Age_max` years
 
 ## Measures
 
 ## Procedure
 
 # Results
+
+@fig-corrplot is a Heatmap
+
+```{r}
+#| label: fig-corrplot
+#| fig-cap: Heatmap
+#| apa-note: This is the note below the figure.
+#| fig-height: 10
+#| fig-width: 10
+heatmap
+```
+
+```{r}
+#| label: fig-violin
+#| fig-cap: Violin Plot with boxplots
+#| apa-note: This is the note below the figure.
+#| fig-height: 15
+#| fig-width: 10
+violin_plots
+```
+
+```{r}
+#| label: fig-time
+#| fig-cap: Model results visualised
+#| apa-note: This is the note below the figure.
+#| fig-height: 15
+#| fig-width: 10
+Plot_across_time
+```
+
+```{r}
+#| label: fig-globality_times_pride
+#| fig-cap: Predictive Contribution of Globality, which interacts with pride
+#| apa-note: This is the note below the figure.
+#| fig-height: 15
+#| fig-width: 10
+globality_plot
+```
 
 # Discussion
 
