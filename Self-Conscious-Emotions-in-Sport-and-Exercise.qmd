@@ -47,7 +47,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot)
 
 
 ```
@@ -248,12 +248,12 @@ mean_sd_median_min_max <- function(df) {
 
 #### Return all variables that are not normally distribute in the dataset####
 which_var_not_normal<- function(df) {
-  names<-df %>% select(where(is.numeric)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
+  names<-df %>% select(where(is.numeric)) %>% select(where(~ !is.na(var(.)) && var(.) > 0)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
   return(names)
 }
 
 which_var_not_normal_p<- function(df) {
-  names<-df %>% select(where(is.numeric)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
+  names<-df %>% select(where(is.numeric)) %>% select(where(~ !is.na(var(.)) && var(.) > 0)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
   not_normal_data<-df[,names]  %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",]
   return(not_normal_data)
 }
@@ -513,10 +513,26 @@ for (i in 1:6) {
 # count the number of "Yes!"es in those
 df$completed_count<- apply(select(df, starts_with(match = "complete_")), 1, function(x) length(which(x=="Yes!"))) # the "1" stands for rows here. see https://stackoverflow.com/questions/24015557/count-occurrences-of-value-in-a-set-of-variables-in-r-per-row
 
-# ####Multiple imputation####
-# imp <- mice(df, m=5, maxit=5, method="pmm") # number of multiple imputations, maximum iterations, method: predictive mean matching
-# # https://bookdown.org/mwheymans/bookmi/multiple-imputation.html#multiple-imputation-in-r
-# df<-complete(imp)
+####Multiple imputation####
+imp <- mice(df, m=5, maxit=5, method="pmm") # number of multiple imputations, maximum iterations, method: predictive mean matching
+# https://bookdown.org/mwheymans/bookmi/multiple-imputation.html#multiple-imputation-in-r
+df<-complete(imp)
+
+
+#####Convert Data to long format#####
+weekly_measures<-select(df, matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
+
+long_df <- df %>%
+  pivot_longer(
+    cols = all_of(weekly_measures), # 
+    names_to = c(".value", "Time"),   # Split into a base name and the timepoint
+    names_pattern = "(.*)_(\\d+)"     # Regex to split column names like "Goal_1"
+  ) %>%
+  mutate(
+    Time = as.numeric(Time)           # Convert extracted timepoint to numeric
+  )
+long_df<-long_df %>% rename( PositiveAffect=PA,NegativeAffect="NA")
+
 ```
 
 ```{r values and tables}
@@ -528,9 +544,6 @@ df$completed_count<- apply(select(df, starts_with(match = "complete_")), 1, func
 descriptives_list <- mean_sd_median_min_max(df)
 vars_not_normal<-which_var_not_normal(df)
 vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", as.character(round(.,3)))))
-stat.desc(df$Locus, basic = F, norm = T)
-stat.desc(df$Dynamics, basic = F, norm = T)
-hist(df$Locus, breaks = 15)
 
 ####demographics table ###############################################
 demographicsdata<- select(df, Age, Gender, Sport)  %>% tbl_summary( percent = "column", by = Gender) %>%  add_p() %>% add_overall() %>% as.data.frame()
@@ -575,19 +588,25 @@ corr_table<-df[,correlation_variables] %>%
 df_stat<-get_descriptive_table(df[, correlation_variables], language = "German")
 
 df_stat$Variable <- c(
-  "Alter", 
-  "Locus", 
-  "Variabilität", 
-  "n (Trainingseinheiten)", 
-  "M (Ziellerreichung)", 
-  "M (km pro Einheit)", 
-  "M (h pro Einheit)", 
-  "M (SessionRPE)", 
-  "M (Negativer Affekt)", 
-  "Baseline wöchentliche KM", 
-  "Baseline wöchentliche H", 
-  "Baseline wöchentliche RPE", 
-  "Baseline negativer Affekt"
+  "1. Pride", 
+    "2. Hubris", 
+    "3. Weekly Training Distance", 
+    "4. Weekly Training Hours", 
+    "5. Weekly Training RPE", 
+    "6. Positive Affect", 
+    "7. Negative Affect", 
+    "8. Achievement", 
+    "9. Affiliation", 
+    "10. Power", 
+    "11. Hope for Success", 
+    "12. Fear of Failure", 
+    "13. Hope for Belonging",
+    "14. Fear of Rejection",
+    "15. Hope for Control",
+    "16. Fear of Loss of Control",
+    "17. Locus",
+    "18. Dynamics",
+    "19. Controllability"
 )
 
 table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
@@ -614,55 +633,24 @@ null_model_goal<- lme(Goal ~ 1,
 # The "1" stands for the "intercept"
 #The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
 summary(null_model_goal)
-icc_goal<--icc(null_model_goal) # The ICC is a lot lower with multiple imputation
+icc_goal<--performance::icc(null_model_goal) # The ICC is a lot lower with multiple imputation
 
 ###Centering###
 #Center the time varying predictors to disentangle the repeated measurements from PA and NA traits
 long_df$PositiveAffect_centered <- long_df$PositiveAffect - ave(long_df$PositiveAffect, long_df$ID, FUN = mean)
 long_df$NegativeAffect_centered <- long_df$NegativeAffect - ave(long_df$NegativeAffect, long_df$ID, FUN = mean)
 
-###General Linear Models####
-#Hypothesis 1.1
-h1.1_model <- glmer(completed_count ~ 1 + Time + Locus + Dynamics + (1 | ID), 
-                    data = long_df, 
-                    family = "poisson")
-tidy(h1.1_model, effects = "fixed", conf.int = TRUE) # see huxreg documentation as for why this is necessary. This is defining a "tidy()-function"
-summary(h1.1_model)
+### Hierarchical Linear Models ####
 
-# Hypothesis 2.1
-h2.1_model <- glmer(completed_count ~ 1 + Time + NA_base + NegativeAffect_centered + (1 | ID), 
-                    data = long_df, 
-                    family = "poisson")
-tidy(h2.1_model, effects = "fixed", conf.int = TRUE)
-summary(h2.1_model)
+library(nlme)
 
-### Table Output ####
-glmtable<-huxreg("Attributions-Modell (H 1.1)" = h1.1_model, "Affekt-Modell (H 2.1)" = h2.1_model ,statistics = NULL, number_format = 3, bold_signif = 0.05, omit_coefs = "Time" , error_pos = "right")
-
-### Hierarchical Linear Model ####
-
-#################Combined Advanced Models #################
-
-#Without PA
-goal_model_centered <- lme(
-  Goal ~ 1 + Time + Locus + Dynamics +  NegativeAffect_centered,
-  data = long_df,
-  random = ~ Time| ID,
-  method = "ML",
-  na.action = na.omit,
-  correlation = corAR1(form = ~ Time | ID)
+model_SessionKM <- lme(
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+  data = long_df
 )
 
-goal_model_raw <- lme(
-  Goal ~ 1 + Time + Locus + Dynamics +  NegativeAffect,
-  data = long_df,
-  random = ~ 1| ID,
-  method = "ML",
-  na.action = na.omit,
-  correlation = corAR1(form = ~ Time | ID)
-)
-
-anova(goal_model_centered,goal_model_raw) # Both models are good,  choose this /(raw)) because it is slightly better and easier for interpretation 
 
 goal_model_basic_pa <- lme(
   Goal ~ 1 + Time + Locus + Dynamics +  NegativeAffect+ PositiveAffect,
@@ -690,7 +678,7 @@ ggplot(data = goal_model_pa_residuals , aes(.ls.resid)) +
 ###### Shapiro test of normality ###############################################
 
 #### Test for the Attribution Model #####
-shaptest_goal_attrib <-shapiro.test(goal_model_pa_residuals $.ls.resid)
+shaptest_goal_attrib <-shapiro.test(goal_model_pa_residuals $.ls.resid)  
 
 ### Markdown Output of p value ####
 shaptest_goal_attrib_p <-if (shaptest_goal_attrib$p.value < 0.001) {
