@@ -435,7 +435,7 @@ filtered_n <-nrow(df_filtered)
 
 #### NAs and Outliers ####
 df_filtered$Missings_amount <- rowSums(is.na(df_filtered))
-df_less_na<-df_filtered %>% filter(Missings_amount<50)#removing participants with more than 50 missings
+df_less_na<-df_filtered %>% filter(Missings_amount<20)#removing participants with more than 50 missings
 na_removed_n <-nrow(df_less_na)
 df<-df_less_na
 
@@ -659,6 +659,12 @@ Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 model_with_pvals <- as_lmerModLmerTest(model_SessionKM_lme4)
 summary(model_with_pvals)
 
+model_SessionKM_lme4<- lme4::lmer(SessionH~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * 
+Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+
+model_with_pvals <- as_lmerModLmerTest(model_SessionKM_lme4)
+summary(model_with_pvals)
+
 ### Table Output #####
 # hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
 
@@ -763,11 +769,19 @@ globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality"
 
 Homoscedasticity_plot <-plot_model(model_SessionKM, type = "diag") 
 
+# Heatmap
+p.mat <- cor_pmat(df[, correlation_variables])
 str(df[, correlation_variables])
 correlation_coefficients<-cor(df[, correlation_variables], use = "pairwise.complete.obs")
 
-ggcorrplot(correlation_coefficients)
-heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type ="lower",  tl.srt = 90,  )+
+ggcorrplot(correlation_coefficients,
+  p.mat = p.mat,
+  type = NULL, insig = "blank", method= "circle", tl.srt = 90+
+    scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
+  scale_y_discrete(labels = custom_labels)
+)
+
+heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.srt = 90,  p.mat = p.mat, insig = "blank")+
   scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
   scale_y_discrete(labels = custom_labels)#https://www.youtube.com/watch?v=E3De2A73ako&t=1s
 ```
@@ -824,6 +838,14 @@ Plot_across_time
 globality_plot
 ```
 
+
+```{r}
+#| label: tbl-corrtable
+#| tbl-cap: The Table Caption
+#| apa-note: The note below the table.
+corr_table
+
+```
 # Discussion
 
 ## Limitations and Future Directions
