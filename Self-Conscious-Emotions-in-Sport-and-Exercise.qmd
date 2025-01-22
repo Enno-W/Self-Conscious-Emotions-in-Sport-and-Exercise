@@ -41,23 +41,19 @@ comments:
 ---
 
 ```{r packages}
-#| echo: false
-#| eval: true 
-#| output: false
+#| include: false
 
 if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn)
 
 
 ```
 
 ```{r functions}
-#| echo: false
-#| eval: true 
-#| output: false
+#| include: false
 
 #### Average two numbers if there is a hyphen####
 handle_hyphen <- function(data, column_name) {
@@ -408,9 +404,7 @@ get_descriptive_table <- function(df, language = "German") {
 ```
 
 ```{r citations}
-#| echo: false
-#| eval: true 
-#| output: false
+#| include: false
 # 
  if (!requireNamespace("excelbib", quietly = TRUE)) { 
  xfun::install_github("Enno-W/excelbib") 
@@ -435,7 +429,7 @@ filtered_n <-nrow(df_filtered)
 
 #### NAs and Outliers ####
 df_filtered$Missings_amount <- rowSums(is.na(df_filtered))
-df_less_na<-df_filtered %>% filter(Missings_amount<20)#removing participants with more than 50 missings
+df_less_na<-df_filtered %>% filter(Missings_amount<30)#removing participants with more than 30 missings
 na_removed_n <-nrow(df_less_na)
 df<-df_less_na
 
@@ -534,16 +528,137 @@ long_df<-long_df %>% rename( PositiveAffect=PA,NegativeAffect="NA")
 
 ```
 
-```{r values and tables}
-#| echo: false
-#| eval: true 
-#| output: false
+```{r values and models}
+#| include: false
 
 #### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
 descriptives_list <- mean_sd_median_min_max(df)
 vars_not_normal<-which_var_not_normal(df)
 vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", as.character(round(.,3)))))
 
+
+
+#### Power analysis ####
+pwr_result <- pwr.r.test(n = NULL,         
+                     r = 0.5,           
+                     sig.level = 0.05,  
+                     power = 0.95,      
+                     alternative = "greater") 
+
+#
+#### Regression Analyses ###############################################
+
+###ICC####
+# Nullmodell
+null_model_km<- lme(SessionKM ~ 1, 
+                      data=long_df, 
+                      random= ~1|ID, 
+                      method="ML", 
+                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
+# The "1" stands for the "intercept"
+#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
+summary(null_model_km)
+icc_goal<--performance::icc(null_model_km)
+
+###Centering###
+#Center the time varying predictors to disentangle the repeated measurements from PA and NA traits
+long_df$PositiveAffect_centered <- long_df$PositiveAffect - ave(long_df$PositiveAffect, long_df$ID, FUN = mean)
+long_df$NegativeAffect_centered <- long_df$NegativeAffect - ave(long_df$NegativeAffect, long_df$ID, FUN = mean)
+
+### Hierarchical Linear Models ####
+long_df$ID<-long_df$ID %>% as.factor()
+
+### km model with nlme()
+model_SessionKM <- lme(
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+   correlation = corCAR1(form = ~ Time | ID),
+  data = long_df, 
+  na.action=na.omit
+)
+
+model_SessionKM_no_covar <- lme(
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit
+)
+
+anova(model_SessionKM_no_covar,model_SessionKM)
+
+## Duration model with nlme()
+model_SessionH <- lme(
+  fixed = SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+   correlation = corCAR1(form = ~ Time | ID),
+  data = long_df, 
+  na.action=na.omit
+)
+
+model_SessionH_no_covar <- lme(
+  fixed = SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+          Pride * Affiliation + Pride * Achievement + Pride * Power,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit
+)
+
+anova(model_SessionH_no_covar,model_SessionH)
+# Since the models with an autocorrelation matrix fit slightly worse(higher AIC and BIC), there is no need to use the nlme-package. 
+
+# km model with lme4
+model_SessionKM_lme4<- lmer(SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride *
+       Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+summary(model_SessionKM_lme4)
+r.squaredGLMM(model_SessionKM)
+
+# Duration model with lme4
+
+model_SessionH_lme4 <- lmer(SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * Affiliation +
+Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+summary(model_SessionH_lme4)
+r.squaredGLMM(model_SessionH)
+
+
+### Table Output #####
+# hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
+
+
+##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
+model_SessionKM_residuals  <- hlm_resid(model_SessionKM, level=1, include.ls = T) # Funktion aus HLMdiag-Package
+#Now, I use the "..._residuals" to make a graph. these are the "Least squares residuals", and they have the advantage that influences from level 2 and 1 are not mixed up. 
+ggplot(data = model_SessionKM_residuals  , aes(.ls.resid)) +
+  geom_histogram(aes(y = after_stat(density)), bins=10) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(model_SessionKM_residuals  $.ls.resid),
+                            sd = sd(model_SessionKM_residuals  $.ls.resid)), linewidth=2) 
+
+###### Shapiro test of normality ###############################################
+
+#### Test for the Attribution Model #####
+test_normality_model_SessionKM_residuals <-shapiro.test(model_SessionKM_residuals $.ls.resid)  
+
+### Markdown Output of p value ####
+test_normality_model_SessionKM_residuals_p <-if (test_normality_model_SessionKM_residuals$p.value < 0.001) {
+  "< .001"
+} else {
+  round( shaptest_goal_affect$p.value, 3)
+}
+
+##### Testing for homoscedasticity and Outliers: The variance of residuals must be constant for all values####
+ggplot(data=model_SessionKM_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
+  geom_point() # Resembles a horizontal cone, speaking against homoscedasticity 
+# Outliers
+ggplot(data = model_SessionKM_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
+ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot() #
+
+```
+
+```{r tables}
+#| include: false
 ####demographics table ###############################################
 demographicsdata<- select(df, Age, Gender, Sport)  %>% tbl_summary( percent = "column", by = Gender) %>%  add_p() %>% add_overall() %>% as.data.frame()
 
@@ -611,98 +726,11 @@ df_stat$Variable <- c(
 table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
  
 
-
-#### Power analysis ####
-pwr_result <- pwr.r.test(n = NULL,         
-                     r = 0.5,           
-                     sig.level = 0.05,  
-                     power = 0.95,      
-                     alternative = "greater") 
-
-#
-#### Regression Analyses ###############################################
-
-###ICC####
-# Nullmodell
-null_model_km<- lme(SessionKM ~ 1, 
-                      data=long_df, 
-                      random= ~1|ID, 
-                      method="ML", 
-                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
-# The "1" stands for the "intercept"
-#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
-summary(null_model_km)
-icc_goal<--performance::icc(null_model_km)
-
-###Centering###
-#Center the time varying predictors to disentangle the repeated measurements from PA and NA traits
-long_df$PositiveAffect_centered <- long_df$PositiveAffect - ave(long_df$PositiveAffect, long_df$ID, FUN = mean)
-long_df$NegativeAffect_centered <- long_df$NegativeAffect - ave(long_df$NegativeAffect, long_df$ID, FUN = mean)
-
-### Hierarchical Linear Models ####
-long_df$ID<-long_df$ID %>% as.factor()
-### km model with nlme()
-model_SessionKM <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-   correlation = corAR1(form = ~ Time | ID),
-  data = long_df, 
-  na.action=na.omit
-)
-summary(model_SessionKM)
-
-# km model with lme4
-model_SessionKM_lme4<- lme4::lmer(SessionKM~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * 
-Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
-
-model_with_pvals <- as_lmerModLmerTest(model_SessionKM_lme4)
-summary(model_with_pvals)
-
-model_SessionKM_lme4<- lme4::lmer(SessionH~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * 
-Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
-
-model_with_pvals <- as_lmerModLmerTest(model_SessionKM_lme4)
-summary(model_with_pvals)
-
-### Table Output #####
-# hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
-
-
-##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
-model_SessionKM_residuals  <- hlm_resid(model_SessionKM, level=1, include.ls = T) # Funktion aus HLMdiag-Package
-#Now, I use the "..._residuals" to make a graph. these are the "Least squares residuals", and they have the advantage that influences from level 2 and 1 are not mixed up. 
-ggplot(data = model_SessionKM_residuals  , aes(.ls.resid)) +
-  geom_histogram(aes(y = after_stat(density)), bins=10) +
-  stat_function(fun = dnorm,
-                args = list(mean = mean(model_SessionKM_residuals  $.ls.resid),
-                            sd = sd(model_SessionKM_residuals  $.ls.resid)), linewidth=2) 
-
-###### Shapiro test of normality ###############################################
-
-#### Test for the Attribution Model #####
-test_normality_model_SessionKM_residuals <-shapiro.test(model_SessionKM_residuals $.ls.resid)  
-
-### Markdown Output of p value ####
-test_normality_model_SessionKM_residuals_p <-if (test_normality_model_SessionKM_residuals$p.value < 0.001) {
-  "< .001"
-} else {
-  round( shaptest_goal_affect$p.value, 3)
-}
-
-##### Testing for homoscedasticity and Outliers: The variance of residuals must be constant for all values####
-ggplot(data=model_SessionKM_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
-  geom_point() # Weird linear patterns emerge: This means, homoscedasticity is violated. 
-# Outliers
-ggplot(data = model_SessionKM_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
-ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot() # per group, the outliers are pretty random and the width varies substantially between groups
-
 ```
 
+
 ```{r graphs}
-#| echo: false
-#| eval: true 
-#| output: false
+#| include: false
 
 
 custom_labels <- c(
@@ -732,20 +760,10 @@ custom_labels <- c(
 
  violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
 
-
- model_SessionKM <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-   correlation = corAR1(form = ~ Time | ID),
-  data = long_df, 
-  na.action=na.omit
-)
 summary(model_SessionKM)
 long_df_filtered <- na.omit(long_df[, c(all.vars(formula(model_SessionKM)),"Time", "ID")])
 long_df_filtered$fitted_km <- fitted(model_SessionKM)
 long_df_filtered$fitted_km <- fitted(model_SessionKM)
-
 
 
 hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
@@ -767,7 +785,11 @@ globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality"
 
 # globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality", "Pride"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality") # Could refine with an interaction plot
 
-Homoscedasticity_plot <-plot_model(model_SessionKM, type = "diag") 
+# Diagnostic plots for model
+Homoscedasticity_plotH <-plot_model(model_SessionH_no_covar, type = "diag") 
+
+
+Homoscedasticity_plot <-plot_model(model_SessionKM, type = "resid") 
 
 # Heatmap
 p.mat <- cor_pmat(df[, correlation_variables])
@@ -789,6 +811,10 @@ heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.
 # Method
 
 @kipchoge2020 @rstudio2024
+
+## Analysis
+
+The original dataset contained data from `r raw_data_n` participants, of which `r raw_data_n - filtered_n` were excluded because they reported that they are not in a training programme. After that, participants with more than 30 missing were excluded. This ensured that each participants completed the questionnaire for at least two sessions, and led to a final sample size of `r na_removed_n`. 
 
 ## Participants
 
