@@ -417,27 +417,34 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 ```
 
 ```{r data import and manipulation}
-load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/241021PRIMOCA_data.Rdata?raw=true"))
-
+#load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/241021PRIMOCA_data.Rdata?raw=true"))
+load("df.Rdata")
+df<-PRIMOCA_data_forR_20240203
 original_data_missings_amount<-sum(is.na(df))
+
 #### counting excluded participants ####
 raw_data_n <-nrow(df)
 
 #### Removing Participants based on the filter varialbe "Programme"#####
-df_filtered<-df %>% filter(Programme == 1|is.na(Programme))
+df_filtered<-df %>% filter(Programme == 1)
 filtered_n <-nrow(df_filtered)
 
-#### NAs and Outliers ####
-df_filtered$Missings_amount <- rowSums(is.na(df_filtered))
-df_less_na<-df_filtered %>% filter(Missings_amount<30)#removing participants with more than 30 missings
-na_removed_n <-nrow(df_less_na)
-df<-df_less_na
+# ID Variable
+df_filtered$ID<-1:nrow(df_filtered)
 
 #### Grouping the different kinds of sports and goals ####
-df$Sport2 <- NA
-df$Sport2[19] <- "Laufen" # Here, I add a second sport for participant 19
-patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
-df <- replace_patterns(df, "Sport", patterns)# See the script "Functions.R" to examine the function
+# df_filtered$Sport2 <- NA
+# df_filtered$Sport2[19] <- "Laufen" # Here, I add a second sport for participant 19
+# patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
+# df <- replace_patterns(df_filtered, "Sport", patterns)# See the script "Functions.R" to examine the function
+
+#### Removing participants that don't have "Triathlon" or "Laufen" as sport ####
+# df<-df %>% filter(Sport == "Triathlon"| Sport== "Laufen")
+
+#### NAs and Outliers ####
+df$Missings_amount <- rowSums(is.na(df))
+df<-df %>% filter(Missings_amount<50)#removing participants with more than 50 missings
+na_removed_n <-nrow(df)
 
 #### Deal with hyphenss in weekly_KM_base ####
 df <- handle_hyphen(df, "WeeklyKM_base")# See the script "Functions.R" to examine the function
@@ -506,12 +513,12 @@ for (i in 1:6) {
 # count the number of "Yes!"es in those
 df$completed_count<- apply(select(df, starts_with(match = "complete_")), 1, function(x) length(which(x=="Yes!"))) # the "1" stands for rows here. see https://stackoverflow.com/questions/24015557/count-occurrences-of-value-in-a-set-of-variables-in-r-per-row
 
-# ####Multiple imputation####
-# #imp <- mice(df, m=5, maxit=5, method="pmm") # number of multiple imputations, maximum iterations, method: predictive mean matching
-# # https://bookdown.org/mwheymans/bookmi/multiple-imputation.html#multiple-imputation-in-r
-# #df<-complete(imp)
-# 
-#load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/df_imputed.Rdata?raw=true"))# outcomment this to NOT use imputation
+# z-Standardizing base_km
+
+# z-Standardizing Implicit Motives data
+
+df[,c("Affiliation_zscore", "Achievement_zscore", "Power_zscore")]<-scale(df[,c("Affiliation", "Achievement", "Power")])
+
 #####Convert Data to long format#####
 weekly_measures<-select(df, matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
@@ -524,7 +531,7 @@ long_df <- df %>%
   mutate(
     Time = as.numeric(Time)           # Convert extracted timepoint to numeric
   )
-long_df<-long_df %>% rename( PositiveAffect=PA,NegativeAffect="NA")
+long_df<-long_df %>% rename( PositiveAffect="PA",NegativeAffect="NA")
 
 ```
 
@@ -558,17 +565,13 @@ null_model_km<- lme(SessionKM ~ 1,
 # The "1" stands for the "intercept"
 #The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
 summary(null_model_km)
-icc_goal<--performance::icc(null_model_km)
-
-###Centering###
-#Center the time varying predictors to disentangle the repeated measurements from PA and NA traits
-long_df$PositiveAffect_centered <- long_df$PositiveAffect - ave(long_df$PositiveAffect, long_df$ID, FUN = mean)
-long_df$NegativeAffect_centered <- long_df$NegativeAffect - ave(long_df$NegativeAffect, long_df$ID, FUN = mean)
+icc_km<--performance::icc(null_model_km)
 
 ### Hierarchical Linear Models ####
 long_df$ID<-long_df$ID %>% as.factor()
 
-### km model with nlme()
+####with nlme{} ####
+### km model with nlme{}
 model_SessionKM <- lme(
   fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
@@ -609,14 +612,41 @@ model_SessionH_no_covar <- lme(
 anova(model_SessionH_no_covar,model_SessionH)
 # Since the models with an autocorrelation matrix fit slightly worse(higher AIC and BIC), there is no need to use the nlme-package. 
 
-# km model with lme4
+#### with lme4 #####
+null_model_km <- lmer(SessionKM ~ 1 + (1 | ID), 
+                      data = long_df, 
+                      REML = FALSE,   # Maximum Likelihood (ML), not REML
+                      na.action = na.omit)
+summary(null_model_km)
 model_SessionKM_lme4<- lmer(SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride *
-       Affiliation + Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+       Affiliation+ Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 summary(model_SessionKM_lme4)
 r.squaredGLMM(model_SessionKM)
 
-# Duration model with lme4
+# Grand mean centering
+long_df[, c("Pride_centered", "Dynamics_centered", "PositiveAffect_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PositiveAffect", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
 
+model_SessionKM_lme4_grand_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PositiveAffect_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
+       Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
+summary(model_SessionKM_lme4_grand_centered)
+r.squaredGLMM(model_SessionKM)
+
+# Group mean centering
+long_df <- long_df %>%
+  group_by(ID) %>%
+  mutate(across(c(Pride, Dynamics, PositiveAffect, Locus, Globality, 
+                  Affiliation, Achievement, Power), 
+                ~ . - mean(.), 
+                .names = "{.col}_centered")) %>%
+  ungroup()
+
+model_SessionKM_lme4_group_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PositiveAffect_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
+       Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
+summary(model_SessionKM_lme4_group_centered)
+r.squaredGLMM(model_SessionKM)
+
+
+# Duration model with lme4
 model_SessionH_lme4 <- lmer(SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * Affiliation +
 Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 summary(model_SessionH_lme4)
@@ -624,7 +654,8 @@ r.squaredGLMM(model_SessionH)
 
 
 ### Table Output #####
-# hlmtable<-huxreg("Nullmodell" = null_model_goal, "NA zentriert" = goal_model_centered, "NA nicht zentriert" = goal_model_raw , "Modell mit PA" = goal_model_basic_pa ,statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
+# Distance
+hlmtable<-huxreg("Nullmodell" = null_model_km, "Raw Model" = model_SessionKM_lme4, "Grand Mean-Centered Model" =model_SessionKM_lme4_grand_centered, "Group Mean-Centered Model" = model_SessionKM_lme4_group_centered,  statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
 
 
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
@@ -659,14 +690,7 @@ ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) 
 
 ```{r tables}
 #| include: false
-####demographics table ###############################################
-demographicsdata<- select(df, Age, Gender, Sport)  %>% tbl_summary( percent = "column", by = Gender) %>%  add_p() %>% add_overall() %>% as.data.frame()
 
-data <- demographicsdata %>%
-  rename_with(~ gsub("\\*\\*", "", .)) %>% # To remove the asterisks from the headers. 
-  mutate(across(everything(), ~ ifelse(is.na(.), "", .)))
-
-demographicstable<- data %>% flextable() %>% flextable::theme_apa() %>% autofit()
 
 #### correlation table ####
 pride_variables<-c("Pride_base", "Hubris_base")
@@ -870,6 +894,14 @@ globality_plot
 #| tbl-cap: The Table Caption
 #| apa-note: The note below the table.
 corr_table
+
+```
+
+```{r}
+#| label: tbl-hlmtable
+#| tbl-cap: The Table Caption
+#| apa-note: The note below the table.
+hlmtable
 
 ```
 # Discussion
