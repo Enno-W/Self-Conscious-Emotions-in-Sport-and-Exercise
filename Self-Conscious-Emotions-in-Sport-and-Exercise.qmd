@@ -417,36 +417,10 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 ```
 
 ```{r data import and manipulation}
-#load(url("https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/241021PRIMOCA_data.Rdata?raw=true"))
-load("df.Rdata")
+load("PRIMOCA_data_forR_20240203.Rdata")
 df<-PRIMOCA_data_forR_20240203
-original_data_missings_amount<-sum(is.na(df))
 
-#### counting excluded participants ####
-raw_data_n <-nrow(df)
-
-#### Removing Participants based on the filter varialbe "Programme"#####
-df_filtered<-df %>% filter(Programme == 1)
-filtered_n <-nrow(df_filtered)
-
-# ID Variable
-df_filtered$ID<-1:nrow(df_filtered)
-
-#### Grouping the different kinds of sports and goals ####
-# df_filtered$Sport2 <- NA
-# df_filtered$Sport2[19] <- "Laufen" # Here, I add a second sport for participant 19
-# patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
-# df <- replace_patterns(df_filtered, "Sport", patterns)# See the script "Functions.R" to examine the function
-
-#### Removing participants that don't have "Triathlon" or "Laufen" as sport ####
-# df<-df %>% filter(Sport == "Triathlon"| Sport== "Laufen")
-
-#### NAs and Outliers ####
-df$Missings_amount <- rowSums(is.na(df))
-df<-df %>% filter(Missings_amount<50)#removing participants with more than 50 missings
-na_removed_n <-nrow(df)
-
-#### Deal with hyphenss in weekly_KM_base ####
+#### Deal with hyphens in weekly_KM_base ####
 df <- handle_hyphen(df, "WeeklyKM_base")# See the script "Functions.R" to examine the function
 df <- df %>%
   mutate(
@@ -454,71 +428,40 @@ df <- df %>%
   )
 df <- handle_hyphen(df, "WeeklyH_base") # also a function from the function script, it averages two numbers out if the person wrote something like 40-45
 
-#### Means based on a string that appears in the variable name####
-df$Goal_ave <- mean_by_pattern(df, "goal")# see functions script
-df$Commit_ave <- mean_by_pattern(df, "commit")
-df$SessionKM_ave <- mean_by_pattern(df, "sessionkm")
-df$SesseionH_ave <- mean_by_pattern(df, "sessionh")
-df$SessionRPE_ave <- mean_by_pattern(df, "sessionrpe")
-df$PA_ave <- mean_by_pattern(df, "pa_")
-df$NA_ave <- mean_by_pattern(df,"na_")
+####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
+
+df$SportCode<-df$SportCode %>% recode(`3` = 1, `4` = 1)
+
+#### Exclude participants#####
+df<-df %>% filter(SportCode<=2)
+
+#### Making everything numeric####
+df[] <- sapply(df, as.numeric)
+
+sum(is.na(df))
+df[df==-99]<-NA
+
+original_data_amount <-  df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave"))%>%  # Select (where colums are numeric)
+  summarise(across(everything(), ~ sum(!is.na(.)))) %>% sum() # Apply summary functions to columns to create a new table of summary statistics. Summary functions take vectors as input and return one value, ~sum of values that are not NA. !! The "." is a placeholder for all the things that are passed throught the function !is.na()
+original_data_missings_amount <- df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
+missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
 
 ####rename the gender ####
 df <- df %>%
-  mutate(Gender = recode(Gender, "1" = "Männlich", "2" = "Weiblich", "3" = "Divers"))
+  mutate(Gender = recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
-####change character varialbes to numeric####
-df$WeeklyKM_base<- as.numeric(df$WeeklyKM_base)
-df$WeeklyH_base<- as.numeric(df$WeeklyH_base)
 
-#### Handling NAs####
-df[df=="NaN"]<-NA
+####z-Standardizing all variables####
+ zstandard_varnames<-df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" , - "WeeklyKM_base", "WeeklyH_base" , -"SportCode", -ends_with("_ave")) %>% names()
+df <- df %>%  mutate_at(zstandard_varnames, ~ (scale(.))) # Hier werden dann [,1] im Variablen angezeigt, aber nur im Viewer???
 
-#### Variable to count training sessions ####
-#function to return "No" if something is FALSE, and vice versa...
-is.training.completed <- function(x) {
-  if (is.na(x)) {
-    return("No!")
-  } else {
-    return("Yes!")
-  }
-}
-#Running that whole thing through a for loop
-for (i in 1:6) {
-  goal_col <- paste0("Goal_", i)
-  newvar_col <- paste0("complete.", i)
-  df[[newvar_col]] <- sapply(df[[goal_col]], FUN = is.training.completed)
-}
-# count the number of "Yes!"es in those
-df$completed_count<- apply(select(df, starts_with(match = "complete.")), 1, function(x) length(which(x=="Yes!"))) # the "1" stands for rows here. see https://stackoverflow.com/questions/24015557/count-occurrences-of-value-in-a-set-of-variables-in-r-per-row
+  #sport specific centering ###Hier noch klären, was 3 und 4 bedeuten??
+library(dplyr)
+df %>% 
+  group_by(SportCode) %>% 
+  mutate(WeeklyKM_base=scale(WeeklyKM_base))
 
-# ID Variable
-df$ID<-1:nrow(df)
-
-### Variable to count training sessions ####
-#function to return "No" if something is FALSE, and vice versa...
-is.training.completed <- function(x) {
-  if (is.na(x)) {
-    return("No!")
-  } else {
-    return("Yes!")
-  }
-}
-# Running that whole thing through a for loop
-for (i in 1:6) {
-  goal_col <- paste0("Goal_", i)
-  newvar_col <- paste0("complete_", i)
-  df[[newvar_col]] <- sapply(df[[goal_col]], FUN = is.training.completed)
-}
-# count the number of "Yes!"es in those
-df$completed_count<- apply(select(df, starts_with(match = "complete_")), 1, function(x) length(which(x=="Yes!"))) # the "1" stands for rows here. see https://stackoverflow.com/questions/24015557/count-occurrences-of-value-in-a-set-of-variables-in-r-per-row
-
-# z-Standardizing base_km
-
-# z-Standardizing Implicit Motives data
-
-df[,c("Affiliation_zscore", "Achievement_zscore", "Power_zscore")]<-scale(df[,c("Affiliation", "Achievement", "Power")])
-
+ 
 #####Convert Data to long format#####
 weekly_measures<-select(df, matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
@@ -531,7 +474,11 @@ long_df <- df %>%
   mutate(
     Time = as.numeric(Time)           # Convert extracted timepoint to numeric
   )
-long_df<-long_df %>% rename( PositiveAffect="PA",NegativeAffect="NA")
+
+#### Centering #####
+# Grand mean centering
+long_df[, c("Pride_centered", "Dynamics_centered", "PA_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PA", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
+
 
 ```
 
@@ -573,7 +520,7 @@ long_df$ID<-long_df$ID %>% as.factor()
 ####with nlme{} ####
 ### km model with nlme{}
 model_SessionKM <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PA+ Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
   random = ~ 1 | ID,
    correlation = corCAR1(form = ~ Time | ID),
@@ -582,7 +529,7 @@ model_SessionKM <- lme(
 )
 
 model_SessionKM_no_covar <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+  fixed = SessionKM ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
   random = ~ 1 | ID,
   data = long_df, 
@@ -593,7 +540,7 @@ anova(model_SessionKM_no_covar,model_SessionKM)
 
 ## Duration model with nlme()
 model_SessionH <- lme(
-  fixed = SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+  fixed = SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
   random = ~ 1 | ID,
    correlation = corCAR1(form = ~ Time | ID),
@@ -602,7 +549,7 @@ model_SessionH <- lme(
 )
 
 model_SessionH_no_covar <- lme(
-  fixed = SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + 
+  fixed = SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
           Pride * Affiliation + Pride * Achievement + Pride * Power,
   random = ~ 1 | ID,
   data = long_df, 
@@ -618,15 +565,14 @@ null_model_km <- lmer(SessionKM ~ 1 + (1 | ID),
                       REML = FALSE,   # Maximum Likelihood (ML), not REML
                       na.action = na.omit)
 summary(null_model_km)
-model_SessionKM_lme4<- lmer(SessionKM ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride *
+model_SessionKM_lme4<- lmer(SessionKM ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride *
        Affiliation+ Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 summary(model_SessionKM_lme4)
 r.squaredGLMM(model_SessionKM)
 
-# Grand mean centering
-long_df[, c("Pride_centered", "Dynamics_centered", "PositiveAffect_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PositiveAffect", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
 
-model_SessionKM_lme4_grand_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PositiveAffect_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
+
+model_SessionKM_lme4_grand_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PA_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
        Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
 summary(model_SessionKM_lme4_grand_centered)
 r.squaredGLMM(model_SessionKM)
@@ -634,20 +580,20 @@ r.squaredGLMM(model_SessionKM)
 # Group mean centering
 long_df <- long_df %>%
   group_by(ID) %>%
-  mutate(across(c(Pride, Dynamics, PositiveAffect, Locus, Globality, 
+  mutate(across(c(Pride, Dynamics, PA, Locus, Globality, 
                   Affiliation, Achievement, Power), 
                 ~ . - mean(.), 
                 .names = "{.col}_centered")) %>%
   ungroup()
 
-model_SessionKM_lme4_group_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PositiveAffect_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
+model_SessionKM_lme4_group_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PA_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
        Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
 summary(model_SessionKM_lme4_group_centered)
 r.squaredGLMM(model_SessionKM)
 
 
 # Duration model with lme4
-model_SessionH_lme4 <- lmer(SessionH ~ Pride * Dynamics + Pride * PositiveAffect + Pride * Locus + Pride * Globality + Pride * Affiliation +
+model_SessionH_lme4 <- lmer(SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride * Affiliation +
 Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
 summary(model_SessionH_lme4)
 r.squaredGLMM(model_SessionH)
@@ -838,7 +784,13 @@ heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.
 
 ## Analysis
 
-The original dataset contained data from `r raw_data_n` participants, of which `r raw_data_n - filtered_n` were excluded because they reported that they are not in a training programme. After that, participants with more than 30 missing were excluded. This ensured that each participants completed the questionnaire for at least two sessions, and led to a final sample size of `r na_removed_n`. 
+-data cleaning 
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Because the variables had different scales, all variables were z-standardized. The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. 
+-imputation
+- descriptive statistics
+  - correlation
+
+For the hierarchical linear models, all predictors were grand mean centered, as we were interested in the average influence of these variables across the six training units, and not the influence of individual fluctuations of in each training unit. 
 
 ## Participants
 
