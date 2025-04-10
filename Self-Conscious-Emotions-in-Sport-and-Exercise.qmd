@@ -31,10 +31,10 @@ abstract: "This document is a template."
 keywords: [keyword1, keyword2, keyword3]
 bibliography: bibliography.bib
 format:
-  apaquarto-html: default
+  #apaquarto-html: default
   apaquarto-docx: default
-  apaquarto-pdf:
-    documentmode: man
+ # apaquarto-pdf:
+   # documentmode: man
     
 comments:
   hypothesis: true
@@ -47,7 +47,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr)
 
 
 ```
@@ -164,39 +164,39 @@ generate_correlation_table2 <- function(df, display_names) {
   library(flextable)
   library(officer)
   
-  # Compute correlation matrix
-  correlation_matrix <- rcorr(as.matrix(df))
-  correlation_matrix_r <- round(correlation_matrix$r, digits = 2)
+  # Compute correlation matrix and p-values
+  corr_result <- rcorr(as.matrix(df))
+  r <- round(corr_result$r, 2)
+  p <- corr_result$P
   
-  # Extract lower triangle of the correlation matrix
-  lower_triangle <- correlation_matrix_r[lower.tri(correlation_matrix_r)]
+  # Initialize matrix for formatted output
+  formatted_matrix <- matrix("", ncol = ncol(r), nrow = nrow(r))
   
-  # Create a clean correlation matrix
-  correlation_matrix_clean <- matrix(NA, nrow = ncol(correlation_matrix_r), ncol = ncol(correlation_matrix_r))
-  correlation_matrix_clean[lower.tri(correlation_matrix_clean)] <- lower_triangle
+  for (i in 1:nrow(r)) {
+    for (j in 1:ncol(r)) {
+      if (i > j) {
+        stars <- if (is.na(p[i, j])) {
+          ""
+        } else if (p[i, j] < 0.01) {
+          "**"
+        } else if (p[i, j] < 0.05) {
+          "*"
+        } else {
+          ""
+        }
+        formatted_matrix[i, j] <- paste0(r[i, j], stars)
+      }
+    }
+  }
   
-  # Compute significance stars
-  stars_matrix <- matrix("", nrow = ncol(correlation_matrix_clean), ncol = ncol(correlation_matrix_clean))
-  stars_matrix[correlation_matrix$P < 0.01 & correlation_matrix$P > 0] <- "**"
-  stars_matrix[correlation_matrix$P >= 0.01 & correlation_matrix$P < 0.05 & correlation_matrix$P > 0] <- "*"
-  
-  # Append stars to the lower triangle of the correlation matrix
-  correlation_matrix_clean[lower.tri(correlation_matrix_clean)] <- paste(correlation_matrix_clean[lower.tri(correlation_matrix_clean)], stars_matrix[lower.tri(stars_matrix)], sep = "")
-  
-  # Create data frame
-  correlation_df <- data.frame(Measure = display_names, correlation_matrix_clean)
-  
-  colnames(correlation_df)[2:ncol(correlation_df)] <- as.character(1:ncol(correlation_matrix_clean))
+  # Turn into a data frame with display names
+  formatted_df <- data.frame(Measure = display_names, formatted_matrix, stringsAsFactors = FALSE)
+  colnames(formatted_df)[2:ncol(formatted_df)] <- as.character(1:(ncol(formatted_df)-1))
   
   # Create flextable
-  flextable(correlation_df) %>%
-    set_header_labels(
-      Measure = "Measure"
-    ) %>%
-    add_header_row(
-      values = c("", "Correlations"), 
-      colwidths = c(1, ncol(correlation_matrix_clean))
-    ) %>%
+  flextable(formatted_df) %>%
+    set_header_labels(Measure = "Measure") %>%
+    add_header_row(values = c("", "Correlations"), colwidths = c(1, ncol(r))) %>%
     flextable::align(align = "center", part = "all") %>%
     flextable::autofit() %>%
     flextable::bold(part = "header") %>%
@@ -208,6 +208,7 @@ generate_correlation_table2 <- function(df, display_names) {
     flextable::hline_bottom(border = fp_border(width = 1.5), part = "body") %>%
     flextable::hline(border = fp_border(width = 1), part = "header")
 }
+
 
 ## Example usage
 #correlation_names <- c("Age", "Gender","Weekly Kilometers")
@@ -433,7 +434,7 @@ df <- handle_hyphen(df, "WeeklyH_base") # also a function from the function scri
 df$SportCode<-df$SportCode %>% recode(`3` = 1, `4` = 1)
 
 #### Exclude participants#####
-df<-df %>% filter(SportCode<=2)
+#df<-df %>% filter(SportCode<=2)
 
 #### Making everything numeric####
 df[] <- sapply(df, as.numeric)
@@ -450,20 +451,20 @@ missings_percentage <-round((original_data_missings_amount / original_data_amoun
 df <- df %>%
   mutate(Gender = recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
+#sport specific centering ###Hier noch klären, was 3 und 4 bedeuten??
+
+# df<-df %>% 
+#   group_by(SportCode) %>% 
+#   mutate(WeeklyKM_base=scale(WeeklyKM_base))
 
 ####z-Standardizing all variables####
- zstandard_varnames<-df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" , - "WeeklyKM_base", "WeeklyH_base" , -"SportCode", -ends_with("_ave")) %>% names()
-df <- df %>%  mutate_at(zstandard_varnames, ~ (scale(.))) # Hier werden dann [,1] im Variablen angezeigt, aber nur im Viewer???
+ zstandard_varnames<-df %>% ungroup() %>% dplyr::select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" , - "WeeklyKM_base", "WeeklyH_base" , -"SportCode", -ends_with("_ave")) %>% names() #https://stackoverflow.com/questions/38511743/adding-missing-grouping-variables-message-in-dplyr-in-r
+df_z <- df %>%  mutate_at(zstandard_varnames, ~ (scale(.))) # Hier werden dann [,1] im Variablen angezeigt, aber nur im Viewer???
 
-  #sport specific centering ###Hier noch klären, was 3 und 4 bedeuten??
-library(dplyr)
-df %>% 
-  group_by(SportCode) %>% 
-  mutate(WeeklyKM_base=scale(WeeklyKM_base))
 
  
 #####Convert Data to long format#####
-weekly_measures<-select(df, matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
+weekly_measures<-df %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
 long_df <- df %>%
   pivot_longer(
@@ -475,137 +476,362 @@ long_df <- df %>%
     Time = as.numeric(Time)           # Convert extracted timepoint to numeric
   )
 
+long_df_z <- df_z %>%
+  pivot_longer(
+    cols = all_of(weekly_measures), # 
+    names_to = c(".value", "Time"),   # Split into a base name and the timepoint
+    names_pattern = "(.*)_(\\d+)"     # Regex to split column names like "Goal_1"
+  ) %>%
+  mutate(
+    Time = as.numeric(Time)           # Convert extracted timepoint to numeric
+  )
+
+
 #### Centering #####
 # Grand mean centering
-long_df[, c("Pride_centered", "Dynamics_centered", "PA_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PA", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
-
-
-```
-
-```{r values and models}
-#| include: false
-
-#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
-descriptives_list <- mean_sd_median_min_max(df)
-vars_not_normal<-which_var_not_normal(df)
-vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", as.character(round(.,3)))))
-
-
-
-#### Power analysis ####
-pwr_result <- pwr.r.test(n = NULL,         
-                     r = 0.5,           
-                     sig.level = 0.05,  
-                     power = 0.95,      
-                     alternative = "greater") 
-
-#
-#### Regression Analyses ###############################################
-
-###ICC####
-# Nullmodell
-null_model_km<- lme(SessionKM ~ 1, 
-                      data=long_df, 
-                      random= ~1|ID, 
-                      method="ML", 
-                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
-# The "1" stands for the "intercept"
-#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
-summary(null_model_km)
-icc_km<--performance::icc(null_model_km)
-
-### Hierarchical Linear Models ####
-long_df$ID<-long_df$ID %>% as.factor()
-
-####with nlme{} ####
-### km model with nlme{}
-model_SessionKM <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PA+ Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-   correlation = corCAR1(form = ~ Time | ID),
-  data = long_df, 
-  na.action=na.omit
-)
-
-model_SessionKM_no_covar <- lme(
-  fixed = SessionKM ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-  data = long_df, 
-  na.action=na.omit
-)
-
-anova(model_SessionKM_no_covar,model_SessionKM)
-
-## Duration model with nlme()
-model_SessionH <- lme(
-  fixed = SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-   correlation = corCAR1(form = ~ Time | ID),
-  data = long_df, 
-  na.action=na.omit
-)
-
-model_SessionH_no_covar <- lme(
-  fixed = SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + 
-          Pride * Affiliation + Pride * Achievement + Pride * Power,
-  random = ~ 1 | ID,
-  data = long_df, 
-  na.action=na.omit
-)
-
-anova(model_SessionH_no_covar,model_SessionH)
-# Since the models with an autocorrelation matrix fit slightly worse(higher AIC and BIC), there is no need to use the nlme-package. 
-
-#### with lme4 #####
-null_model_km <- lmer(SessionKM ~ 1 + (1 | ID), 
-                      data = long_df, 
-                      REML = FALSE,   # Maximum Likelihood (ML), not REML
-                      na.action = na.omit)
-summary(null_model_km)
-model_SessionKM_lme4<- lmer(SessionKM ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride *
-       Affiliation+ Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
-summary(model_SessionKM_lme4)
-r.squaredGLMM(model_SessionKM)
-
-
-
-model_SessionKM_lme4_grand_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PA_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
-       Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
-summary(model_SessionKM_lme4_grand_centered)
-r.squaredGLMM(model_SessionKM)
+long_df[, c("Pride_centered", "Dynamics_centered", "PA_gm_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PA", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
 
 # Group mean centering
 long_df <- long_df %>%
   group_by(ID) %>%
-  mutate(across(c(Pride, Dynamics, PA, Locus, Globality, 
-                  Affiliation, Achievement, Power), 
+  mutate(across(c(Pride, PA), 
                 ~ . - mean(.), 
-                .names = "{.col}_centered")) %>%
+                .names = "{.col}_gm_centered")) %>%
   ungroup()
+long_df$SessionKM_rank<-rank(long_df$SessionKM)
+long_df$SessionH_rank<-rank(long_df$SessionH)
+long_df$SessionKM_log <- log(long_df$SessionKM)
+long_df$SessionKM_log[is.infinite(long_df$SessionKM_log)] <- NA
+long_df$SessionH_log <- log(long_df$SessionH)
+long_df$SessionH_log[is.infinite(long_df$SessionH_log)] <- NA
+long_df$SessionRPE_log <- log(long_df$SessionRPE)
+long_df$SessionRPE_rank <- rank(long_df$SessionRPE)
 
-model_SessionKM_lme4_group_centered<- lmer(SessionKM ~ Pride_centered * Dynamics_centered + Pride_centered * PA_centered + Pride_centered * Locus_centered + Pride_centered * Globality_centered + Pride_centered *
-       Affiliation + Pride_centered * Achievement + Pride_centered * Power + (1 | ID), data = long_df)
-summary(model_SessionKM_lme4_group_centered)
-r.squaredGLMM(model_SessionKM)
+long_df$ID<-long_df$ID %>% as.factor()
+```
+
+```{r HLM Table and graphs for KM}
+#| include: false
 
 
-# Duration model with lme4
-model_SessionH_lme4 <- lmer(SessionH ~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride * Affiliation +
-Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
-summary(model_SessionH_lme4)
-r.squaredGLMM(model_SessionH)
+##### Null model and ICC ####
 
+null_model_km<- lme(SessionKM_log ~ 1, 
+                      data=long_df, 
+                      random= ~1|ID, 
+                      method="ML", 
+                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
+summary(null_model_km)
+# The "1" stands for the "intercept"
+#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
+icc_km<-performance::icc(null_model_km)
+# 
+# model_SessionKM_log<-lmer(SessionKM_log~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride * Affiliation + 
+# Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+
+
+model_SessionKM_1 <- lme(
+  fixed =   SessionKM_log ~   
+    Pride_gm_centered* PA_gm_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionKM_2 <- lme(
+  fixed = SessionKM_log ~ 
+    Pride_gm_centered* PA_gm_centered+
+    Pride_gm_centered* Dynamics_centered + 
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered ,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionKM_3 <- lme(
+  fixed = SessionKM_log ~ 
+    Pride_gm_centered * PA_gm_centered+ 
+    Pride_gm_centered * Dynamics_centered + 
+    Pride_gm_centered * Locus_centered + 
+    Pride_gm_centered * Globality_centered + 
+    Pride_gm_centered * Affiliation_centered + 
+    Pride_gm_centered * Achievement_centered + 
+    Pride_gm_centered * Power_centered,
+  random = ~ 1 | ID,
+
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionKM_4 <- lme(
+  fixed = SessionKM ~ 
+    Pride_gm_centered* PA_gm_centered+ 
+    Pride_gm_centered* Dynamics_centered +
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered + 
+    Pride_gm_centered* Affiliation_centered + 
+    Pride_gm_centered* Achievement_centered + 
+    Pride_gm_centered* Power_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit,
+    method = "REML"
+)
 
 ### Table Output #####
 # Distance
-hlmtable<-huxreg("Nullmodell" = null_model_km, "Raw Model" = model_SessionKM_lme4, "Grand Mean-Centered Model" =model_SessionKM_lme4_grand_centered, "Group Mean-Centered Model" = model_SessionKM_lme4_group_centered,  statistics = NULL, number_format = 3, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right")# only use fixed effects in the parentheses
+hlmtable<-huxreg("Nullmodell" = null_model_km, 
+                 "Model 1" = model_SessionKM_1, 
+                 "Model 2" = model_SessionKM_2, 
+                 "Model 3" = model_SessionKM_3,
+                 "Model 4" = model_SessionKM_4, 
+                 statistics = NULL, 
+                 number_format = 2, 
+                 bold_signif = 0.05, 
+                 tidy_args =  list(effects = "fixed"), 
+                 error_pos="right",
+                coefs = c(
+    "(Intercept)" = "(Intercept)",
+    "Pride" = "Pride_gm_centered",
+     "Positive Affect" = "PA_gm_centered",
+    "Dynamics" = "Dynamics_centered",
+    "Locus" = "Locus_centered",
+    "Globality" = "Globality_centered",
+    "Affiliation" = "Affiliation_centered",
+    "Achievement" = "Achievement_centered",
+    "Power" = "Power_centered",
+    "Pride × Dynamics" = "Pride_gm_centered:Dynamics_centered",
+    "Pride × Positive Affect" = "Pride_gm_centered:PA_gm_centered",
+    "Pride × Locus" = "Pride_gm_centered:Locus_centered",
+    "Pride × Globality" = "Pride_gm_centered:Globality_centered",
+    "Pride × Affiliation" = "Pride_gm_centered:Affiliation_centered",
+    "Pride × Achievement" = "Pride_gm_centered:Achievement_centered",
+    "Pride × Power" = "Pride_gm_centered:Power_centered")
+)
 
+    # weitere Variablen nach Bedarf ergänzen
+
+
+```
+
+```{r HLM Table and graphs for H (Duration)}
+#| include: false
+
+
+##### Null model and ICC ####
+null_model_h<- lme(SessionH_log ~ 1, 
+                      data=long_df, 
+                      random= ~1|ID, 
+                      method="ML", 
+                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
+summary(null_model_h)
+# The "1" stands for the "intercept"
+#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
+icc_h<-performance::icc(null_model_h)
+
+
+model_SessionH_1 <- lme(
+  fixed =   SessionH_log ~   
+    Pride_gm_centered* PA_gm_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionH_2 <- lme(
+  fixed = SessionH_log ~ 
+        Pride_gm_centered* PA_gm_centered + 
+    Pride_gm_centered* Dynamics_centered + 
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered ,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionH_3 <- lme(
+  fixed = SessionH_log ~ 
+    Pride_gm_centered * PA_gm_centered+ 
+    Pride_gm_centered * Dynamics_centered + 
+    Pride_gm_centered * Locus_centered + 
+    Pride_gm_centered * Globality_centered + 
+    Pride_gm_centered * Affiliation_centered + 
+    Pride_gm_centered * Achievement_centered + 
+    Pride_gm_centered * Power_centered,
+  random = ~ 1 | ID,
+
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionH_4 <- lme(
+  fixed = SessionH ~ 
+    Pride_gm_centered* PA_gm_centered+ 
+    Pride_gm_centered* Dynamics_centered +
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered + 
+    Pride_gm_centered* Affiliation_centered + 
+    Pride_gm_centered* Achievement_centered + 
+    Pride_gm_centered* Power_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit,
+    method = "REML"
+)
+
+
+
+### Table Output #####
+hlmtable_h<-huxreg("Nullmodell" = null_model_h, 
+                   "Model 1" = model_SessionH_1, 
+                   "Model 2" = model_SessionH_2, 
+                   "Model 3" = model_SessionH_3,
+                   "Model 4" = model_SessionH_4, 
+                   statistics = NULL, number_format = 2, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right",
+                  coefs = c(
+    "(Intercept)" = "(Intercept)",
+    "Pride" = "Pride_gm_centered",
+    "Positive Affect" = "PA_gm_centered",
+    "Dynamics" = "Dynamics_centered",
+    "Locus" = "Locus_centered",
+    "Globality" = "Globality_centered",
+    "Affiliation" = "Affiliation_centered",
+    "Achievement" = "Achievement_centered",
+    "Power" = "Power_centered",
+    "Pride × Dynamics" = "Pride_gm_centered:Dynamics_centered",
+    "Pride × Positive Affect" = "Pride_gm_centered:PA_gm_centered",
+    "Pride × Locus" = "Pride_gm_centered:Locus_centered",
+    "Pride × Globality" = "Pride_gm_centered:Globality_centered",
+    "Pride × Affiliation" = "Pride_gm_centered:Affiliation_centered",
+    "Pride × Achievement" = "Pride_gm_centered:Achievement_centered",
+    "Pride × Power" = "Pride_gm_centered:Power_centered"
+  ))
+
+
+```
+
+```{r HLM Table and graphs for RPE}
+#| include: false
+
+
+##### Null model and ICC ####
+
+null_model_rpe<- lme(SessionRPE_log ~ 1, 
+                      data=long_df, 
+                      random= ~1|ID, 
+                      method="ML", 
+                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
+summary(null_model_km)
+# The "1" stands for the "intercept"
+#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
+icc_rpe<-performance::icc(null_model_rpe)
+# 
+# model_SessionRPE<-lmer(SessionRPE~ Pride * Dynamics + Pride * PA + Pride * Locus + Pride * Globality + Pride * Affiliation + 
+# Pride * Achievement + Pride * Power + (1 | ID), data = long_df)
+
+
+model_SessionRPE_1 <- lme(
+  fixed =   SessionRPE_log ~   
+    Pride_gm_centered* PA_gm_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionRPE_2 <- lme(
+  fixed = SessionRPE_log ~ 
+      Pride_gm_centered * PA_gm_centered+ 
+    Pride_gm_centered* Dynamics_centered + 
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered ,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionRPE_3 <- lme(
+  fixed = SessionRPE_log ~ 
+    Pride_gm_centered * PA_gm_centered+ 
+    Pride_gm_centered * Dynamics_centered + 
+    Pride_gm_centered * Locus_centered + 
+    Pride_gm_centered * Globality_centered + 
+    Pride_gm_centered * Affiliation_centered + 
+    Pride_gm_centered * Achievement_centered + 
+    Pride_gm_centered * Power_centered,
+  random = ~ 1 | ID,
+
+  data = long_df, 
+  na.action=na.omit, 
+  method = "REML"
+)
+
+model_SessionRPE_4 <- lme(
+  fixed = SessionRPE ~ 
+    Pride_gm_centered* PA_gm_centered+ 
+    Pride_gm_centered* Dynamics_centered +
+    Pride_gm_centered* Locus_centered + 
+    Pride_gm_centered* Globality_centered + 
+    Pride_gm_centered* Affiliation_centered + 
+    Pride_gm_centered* Achievement_centered + 
+    Pride_gm_centered* Power_centered,
+  random = ~ 1 | ID,
+  data = long_df, 
+  na.action=na.omit,
+    method = "REML"
+)
+
+### Table Output #####
+hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe, 
+                     "Model 1" = model_SessionRPE_1, 
+                     "Model 2" = model_SessionRPE_2, 
+                     "Model 3" = model_SessionRPE_3,
+                     "Model 4" = model_SessionRPE_4, 
+                     statistics = NULL, number_format = 2, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right",
+                     coefs = c(
+    "(Intercept)" = "(Intercept)",
+    "Pride" = "Pride_gm_centered",
+    "Positive Affect" = "PA_gm_centered",
+    "Dynamics" = "Dynamics_centered",
+    "Locus" = "Locus_centered",
+    "Globality" = "Globality_centered",
+    "Affiliation" = "Affiliation_centered",
+    "Achievement" = "Achievement_centered",
+    "Power" = "Power_centered",
+    "Pride × Dynamics" = "Pride_gm_centered:Dynamics_centered",
+    "Pride × Positive Affect" = "Pride_gm_centered:PA_gm_centered",
+    "Pride × Locus" = "Pride_gm_centered:Locus_centered",
+    "Pride × Globality" = "Pride_gm_centered:Globality_centered",
+    "Pride × Affiliation" = "Pride_gm_centered:Affiliation_centered",
+    "Pride × Achievement" = "Pride_gm_centered:Achievement_centered",
+    "Pride × Power" = "Pride_gm_centered:Power_centered"
+  ))
+# only use fixed effects in the parentheses
+
+
+
+```
+
+```{r exploring assumptions for the HLMs}
+#| include: false
+
+residuals_model <- residuals(model_SessionKM_4)
+hist(residuals_model, breaks = 30, main = "Histogram of Residuals", xlab = "Residuals")
+qqnorm(residuals_model)
+qqline(residuals_model, col = "red")
+shapiro.test(residuals_model)
+#ks.test(residuals_model, "pnorm", mean(residuals_model), sd(residuals_model))
 
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
-model_SessionKM_residuals  <- hlm_resid(model_SessionKM, level=1, include.ls = T) # Funktion aus HLMdiag-Package
+model_SessionKM_residuals  <- hlm_resid(model_SessionKM_4, level=1, include.ls = T) # Funktion aus HLMdiag-Package
 #Now, I use the "..._residuals" to make a graph. these are the "Least squares residuals", and they have the advantage that influences from level 2 and 1 are not mixed up. 
 ggplot(data = model_SessionKM_residuals  , aes(.ls.resid)) +
   geom_histogram(aes(y = after_stat(density)), bins=10) +
@@ -627,10 +853,31 @@ test_normality_model_SessionKM_residuals_p <-if (test_normality_model_SessionKM_
 
 ##### Testing for homoscedasticity and Outliers: The variance of residuals must be constant for all values####
 ggplot(data=model_SessionKM_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
-  geom_point() # Resembles a horizontal cone, speaking against homoscedasticity 
+  geom_point()
 # Outliers
 ggplot(data = model_SessionKM_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
-ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot() #
+ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot()
+
+```
+
+```{r values}
+#| include: false
+
+#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
+descriptives_list <- mean_sd_median_min_max(df)
+vars_not_normal<-which_var_not_normal(df)
+vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", as.character(round(.,3)))))
+
+
+
+#### Power analysis ####
+pwr_result <- pwr.r.test(n = NULL,         
+                     r = 0.5,           
+                     sig.level = 0.05,  
+                     power = 0.95,      
+                     alternative = "greater") 
+
+#
 
 ```
 
@@ -640,8 +887,8 @@ ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) 
 
 #### correlation table ####
 pride_variables<-c("Pride_base", "Hubris_base")
-base_training_and_affect_variables<-df %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
-motive_variables <- c("Achievement", "Affiliation", "Power", df %>% select(starts_with("Gen_")) %>% names())
+base_training_and_affect_variables<-df %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
+motive_variables <- c("Achievement", "Affiliation", "Power", df %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
 attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
 corr_table<-df[,correlation_variables] %>% 
@@ -698,7 +945,6 @@ table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
 
 ```
 
-
 ```{r graphs}
 #| include: false
 
@@ -730,15 +976,20 @@ custom_labels <- c(
 
  violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
 
-summary(model_SessionKM)
-long_df_filtered <- na.omit(long_df[, c(all.vars(formula(model_SessionKM)),"Time", "ID")])
-long_df_filtered$fitted_km <- fitted(model_SessionKM)
-long_df_filtered$fitted_km <- fitted(model_SessionKM)
+
+long_df_filtered <- na.omit(long_df[, c(
+  "SessionKM_log", "Pride_gm_centered", "Dynamics_centered",
+  "PA_gm_centered", "Locus_centered", "Globality_centered",
+  "Affiliation_centered", "Achievement_centered", "Power_centered",
+  "Time", "ID"
+)])
+long_df_filtered$fitted_km <- fitted(model_SessionKM_4)
+long_df_filtered$fitted_km <- fitted(model_SessionKM_4)
 
 
 hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
   geom_line(show.legend = F)+
-  geom_point(aes(x= Time, y= SessionKM), show.legend = F)+
+  geom_point(aes(x= Time, y= SessionKM_log), show.legend = F)+
   labs(x = "Time", y = "Fitted Goal", title = "Predicted KM by ID") +
   theme_minimal()+
   labs(
@@ -747,19 +998,25 @@ hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, colo
     color = "ID"
   )
 
-time_plot<-plot_model(model_SessionKM, type = "pred", terms = "Time", show.data = T, jitter = .2, grid = T ,axis.title = c("Session No. ", "SessionKM"), title = "Running Distance")
+pride_dynamics_plot<- plot_model(
+  model_SessionKM_4,
+  type = "int",
+  terms = c("Pride_gm_centered", "Dynamics_centered"),
+  title = "Interaction: Pride × Dynamics"
+)
 
-Plot_across_time <- hlm_plot+time_plot
 
-globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
+
+
+globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globality_centered"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
 
 # globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality", "Pride"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality") # Could refine with an interaction plot
 
 # Diagnostic plots for model
-Homoscedasticity_plotH <-plot_model(model_SessionH_no_covar, type = "diag") 
+Homoscedasticity_plotH <-plot_model(model_SessionKM_4, type = "diag") 
 
 
-Homoscedasticity_plot <-plot_model(model_SessionKM, type = "resid") 
+Homoscedasticity_plot <-plot_model(model_SessionKM_4, type = "resid") 
 
 # Heatmap
 p.mat <- cor_pmat(df[, correlation_variables])
@@ -784,9 +1041,8 @@ heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.
 
 ## Analysis
 
--data cleaning 
-We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Because the variables had different scales, all variables were z-standardized. The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. 
--imputation
+
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of [Lit]. Descriptive statistics were calculated for all variables
 - descriptive statistics
   - correlation
 
@@ -822,14 +1078,6 @@ heatmap
 violin_plots
 ```
 
-```{r}
-#| label: fig-time
-#| fig-cap: Model results visualised
-#| apa-note: This is the note below the figure.
-#| fig-height: 15
-#| fig-width: 10
-Plot_across_time
-```
 
 ```{r}
 #| label: fig-globality_times_pride
@@ -840,7 +1088,7 @@ Plot_across_time
 globality_plot
 ```
 
-
+::: {.landscape}
 ```{r}
 #| label: tbl-corrtable
 #| tbl-cap: The Table Caption
@@ -849,13 +1097,31 @@ corr_table
 
 ```
 
+
 ```{r}
-#| label: tbl-hlmtable
-#| tbl-cap: The Table Caption
-#| apa-note: The note below the table.
+#| label: tbl-hlmtable_km
+#| tbl-cap: Hierarchical Linear Model Coefficients Predicting Running Distance
+#| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. In Model 4, the dependent variable was log-transformed to address heteroscedasticity and normality of residues. The fit indices of Model 4 are not directly comparable to models 1-3. 
 hlmtable
 
 ```
+
+
+```{r}
+#| label: tbl-hlmtable_h
+#| tbl-cap: Hierarchical Linear Model Coefficients Predicting Running Time
+#| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. In Model 4, the dependent variable was log-transformed to address heteroscedasticity and normality of residues. The fit indices of Model 4 are not directly comparable to models 1-3.  
+hlmtable_h
+
+```
+
+```{r}
+#| label: tbl-hlmtable_rpe
+#| tbl-cap: Hierarchical Linear Model Coefficients Predicting Session Rate of Perceived Exhaustion 
+#| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. In Model 4, the dependent variable was log-transformed to address heteroscedasticity and normality of residues. The fit indices of Model 4 are not directly comparable to models 1-3. 
+hlmtable_rpe
+```
+:::
 # Discussion
 
 ## Limitations and Future Directions
