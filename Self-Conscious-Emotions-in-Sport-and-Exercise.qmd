@@ -510,7 +510,7 @@ long_df$SessionRPE_rank <- rank(long_df$SessionRPE)
 long_df$ID<-long_df$ID %>% as.factor()
 ```
 
-```{r HLM Table and graphs for KM}
+```{r HLM Table for KM}
 #| include: false
 
 
@@ -588,7 +588,6 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
                  "Model 1" = model_SessionKM_1, 
                  "Model 2" = model_SessionKM_2, 
                  "Model 3" = model_SessionKM_3,
-                 "Model 4" = model_SessionKM_4, 
                  statistics = NULL, 
                  number_format = 2, 
                  bold_signif = 0.05, 
@@ -614,9 +613,95 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
 )
 
     # weitere Variablen nach Bedarf ergänzen
+```
+
+```{r SessionKM graphs and assumptions check}
+#| include: false
+##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
+
+# Extract Residuals
+SessionKM_residuals <- hlm_resid(model_SessionKM_3, level=1, include.ls = T) 
+
+########Normality Plots #####
+# Normality Plot with least square residuals
+ndist_plot_km <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
+  geom_histogram(aes(y = after_stat(density)), bins=30) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(SessionKM_residuals  $.ls.resid),
+                            sd = sd(SessionKM_residuals  $.ls.resid)), linewidth=2) # The "groups" (measurement points) are small, thus some are "rank deficient" - the regular residuals provide a less biased estimate
+
+# Normality Plot with residuals
+ndist_plot_km <- ggplot(data = SessionKM_residuals  , aes(.resid)) +
+  geom_histogram(aes(y = after_stat(density)), bins=30) +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(SessionKM_residuals  $.resid),
+                            sd = sd(SessionKM_residuals  $.resid)), linewidth=2) 
+
+# QQ line
+qqplot_km<-ggplot(SessionKM_residuals, aes(sample = .resid)) +
+  stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
+  stat_qq_line(color = "black", linetype = "dashed") +
+  labs(
+    x = "Theoretical Quantiles",
+    y = "Sample Quantiles"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.border = element_rect(fill = NA, color = "black")
+  )
+
+
+###### Tests of normality ###############################################
+
+#### Test for the Attribution Model #####
+ntest_shapiro_km <-shapiro.test(SessionKM_residuals $.resid)  
+ntest_ks_km <-ks.test(SessionKM_residuals  $.resid, "pnorm", mean(SessionKM_residuals  $.resid), sd(SessionKM_residuals  $.resid), exact = T)
+### Markdown Output of p value ####
+ntest_shapiro_km_p <-if (ntest_shapiro_km$p.value < 0.001) {
+  "< .001"
+} else {
+  round( shaptest_goal_affect$p.value, 3)
+}
+
+##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
+
+resid_plot_km<-ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) +
+  geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted Values",
+    y = "Residuals",
+    title = NULL
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.border = element_rect(fill = NA, color = "black")
+  )
+
+# Outliers (All)
+ggplot(data = SessionKM_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
+
+#Outliers per individual
+outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, y = ID)) +
+  geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
+  labs(
+    y = "Individual No.",
+    x = "Residuals"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.border = element_rect(fill = NA, color = "black")
+  )
 
 
 ```
+
 
 ```{r HLM Table and graphs for H (Duration)}
 #| include: false
@@ -823,40 +908,6 @@ hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe,
 ```{r exploring assumptions for the HLMs}
 #| include: false
 
-residuals_model <- residuals(model_SessionKM_4)
-hist(residuals_model, breaks = 30, main = "Histogram of Residuals", xlab = "Residuals")
-qqnorm(residuals_model)
-qqline(residuals_model, col = "red")
-shapiro.test(residuals_model)
-#ks.test(residuals_model, "pnorm", mean(residuals_model), sd(residuals_model))
-
-##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
-model_SessionKM_residuals  <- hlm_resid(model_SessionKM_4, level=1, include.ls = T) # Funktion aus HLMdiag-Package
-#Now, I use the "..._residuals" to make a graph. these are the "Least squares residuals", and they have the advantage that influences from level 2 and 1 are not mixed up. 
-ggplot(data = model_SessionKM_residuals  , aes(.ls.resid)) +
-  geom_histogram(aes(y = after_stat(density)), bins=10) +
-  stat_function(fun = dnorm,
-                args = list(mean = mean(model_SessionKM_residuals  $.ls.resid),
-                            sd = sd(model_SessionKM_residuals  $.ls.resid)), linewidth=2) 
-
-###### Shapiro test of normality ###############################################
-
-#### Test for the Attribution Model #####
-test_normality_model_SessionKM_residuals <-shapiro.test(model_SessionKM_residuals $.ls.resid)  
-
-### Markdown Output of p value ####
-test_normality_model_SessionKM_residuals_p <-if (test_normality_model_SessionKM_residuals$p.value < 0.001) {
-  "< .001"
-} else {
-  round( shaptest_goal_affect$p.value, 3)
-}
-
-##### Testing for homoscedasticity and Outliers: The variance of residuals must be constant for all values####
-ggplot(data=model_SessionKM_residuals , aes(x=.ls.fitted, y=.ls.resid)) +
-  geom_point()
-# Outliers
-ggplot(data = model_SessionKM_residuals , aes(y= .ls.resid)) + theme_gray() + geom_boxplot() #overall
-ggplot(data = model_SessionKM_residuals , aes( x= .ls.resid, y= as.factor(ID))) + theme_gray() + geom_boxplot()
 
 ```
 
