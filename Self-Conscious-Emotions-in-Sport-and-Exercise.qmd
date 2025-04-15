@@ -47,7 +47,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr, car)
 
 
 ```
@@ -431,7 +431,7 @@ df <- handle_hyphen(df, "WeeklyH_base") # also a function from the function scri
 
 ####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
 
-df$SportCode<-df$SportCode %>% recode(`3` = 1, `4` = 1)
+df$SportCode<-df$SportCode %>% dplyr::recode(`3` = 1, `4` = 1)
 
 
 #### Making everything numeric####
@@ -447,7 +447,7 @@ missings_percentage <-round((original_data_missings_amount / original_data_amoun
 
 ####rename the gender ####
 df <- df %>%
-  mutate(Gender = recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
+  mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
 #### sport specific z-scaling ####
 
@@ -563,6 +563,7 @@ model_SessionKM_1 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -575,6 +576,7 @@ model_SessionKM_2 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+
   method = "REML"
 )
 
@@ -647,8 +649,7 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
 
 # Extract Residuals
-SessionKM_residuals <- hlm_resid(model_SessionKM_3, level=1, include.ls = T) 
-SessionKM_residuals_no_logtransform <- hlm_resid(model_SessionKM_4, level=1, include.ls = T) 
+SessionKM_residuals <- hlm_resid(model_SessionKM_2, level=1, include.ls = T) 
 ########Normality Plots #####
 # Normality Plot with least square residuals
 ndist_plot_km_ls <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
@@ -684,7 +685,6 @@ ndist_plot_km<- ggplot(data = SessionKM_residuals, aes(.resid)) +
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-#ndist_plot_km+ndist_plot_km_no_logtransform
 # QQ line
 qqplot_km<-ggplot(SessionKM_residuals, aes(sample = .resid)) +
   stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
@@ -699,20 +699,7 @@ qqplot_km<-ggplot(SessionKM_residuals, aes(sample = .resid)) +
     axis.text = element_text(size = 10),
     panel.border = element_rect(fill = NA, color = "black")
   )
-qqplot_km_no_logtransform <-ggplot(SessionKM_residuals_no_logtransform, aes(sample = .resid)) +
-  stat_qq(shape = 21, color = "black", fill = "black", size = 2) +
-  stat_qq_line(color = "black", linetype = "dashed") +
-  labs(
-    x = "Theoretical Quantiles",
-    y = "Sample Quantiles"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-# qqplot_km+qqplot_km_no_logtransform
+
 
 
 ###### Tests of normality ###############################################
@@ -720,7 +707,21 @@ qqplot_km_no_logtransform <-ggplot(SessionKM_residuals_no_logtransform, aes(samp
 #### Test for the Attribution Model #####
 ntest_shapiro_km <-shapiro.test(SessionKM_residuals $.resid)  
 ntest_ks_km <-ks.test(SessionKM_residuals  $.resid, "pnorm", mean(SessionKM_residuals  $.resid), sd(SessionKM_residuals  $.resid), exact = T)
-ntest_ks_km_no_logtransform <-ks.test(SessionKM_residuals_no_logtransform  $.resid, "pnorm", mean(SessionKM_residuals_no_logtransform  $.resid), sd(SessionKM_residuals_no_logtransform  $.resid), exact = T)
+
+######Variance Incluence Factor ####
+model_SessionKM_2_lmer <- lmer(
+  SessionKM_lead1 ~ 
+    Pride_gm_centered * PA_gm_centered +
+    Pride_gm_centered * Dynamics_centered + 
+    Pride_gm_centered * Locus_centered + 
+    Pride_gm_centered * Globality_centered +
+    (1 | ID),
+  data = long_df,
+  na.action = na.omit,
+  REML = TRUE
+)
+vif(model_SessionKM_2_lmer) 
+
 
 ##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 
@@ -739,20 +740,6 @@ resid_plot_km<-ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) 
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-resid_plot_km_no_logtransform<-ggplot(data = SessionKM_residuals_no_logtransform, aes(x = .fitted, y = .resid)) +
-  geom_point(shape = 15, color = "black", size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    x = "Fitted Values",
-    y = "Residuals",
-    title = NULL
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
 #resid_plot_km+resid_plot_km_no_logtransform
 # Outliers (All)
 ggplot(data = SessionKM_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
@@ -796,6 +783,7 @@ model_SessionH_1 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -808,6 +796,7 @@ model_SessionH_2 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -824,6 +813,7 @@ model_SessionH_3 <- lme(
 
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -953,6 +943,14 @@ ntest_ks_h <-ks.test(SessionH_residuals  $.resid, "pnorm", mean(SessionH_residua
 ntest_ks_h_no_logtransform <-ks.test(SessionH_residuals_no_logtransform  $.resid, "pnorm", mean(SessionH_residuals_no_logtransform  $.resid), sd(SessionH_residuals_no_logtransform  $.resid), exact = T)
 
 
+#### VAriance influence Factor ####
+model_SessionH_1_lmer<- lmer(
+  SessionH_lead1 ~ Pride_gm_centered * PA_gm_centered + (1 | ID), 
+  data = long_df, 
+  na.action = na.omit, 
+  REML = TRUE
+)
+vif(model_SessionH_1_lmer)
 ##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 
 resid_plot_h<-ggplot(data = SessionH_residuals, aes(x = .fitted, y = .resid)) +
@@ -1030,6 +1028,7 @@ model_SessionRPE_1 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -1042,6 +1041,7 @@ model_SessionRPE_2 <- lme(
   random = ~ 1 | ID,
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -1058,6 +1058,7 @@ model_SessionRPE_3 <- lme(
 
   data = long_df, 
   na.action=na.omit, 
+  
   method = "REML"
 )
 
@@ -1177,6 +1178,24 @@ qqplot_rpe_no_logtransform <-ggplot(SessionRPE_residuals_no_logtransform, aes(sa
     panel.border = element_rect(fill = NA, color = "black")
   )
 # qqplot_rpe+qqplot_rpe_no_logtransform
+
+##### Variance Influence Factor ### 
+model_SessionRPE_3_lmer <- lmer(
+  SessionRPE_lead1 ~ 
+    Pride_gm_centered * PA_gm_centered + 
+    Pride_gm_centered * Dynamics_centered + 
+    Pride_gm_centered * Locus_centered + 
+    Pride_gm_centered * Globality_centered + 
+    Pride_gm_centered * Affiliation_centered + 
+    Pride_gm_centered * Achievement_centered + 
+    Pride_gm_centered * Power_centered + 
+    (1 | ID),
+  data = long_df,
+  na.action = na.omit,
+  REML = TRUE
+)
+
+vif(model_SessionRPE_3_lmer)
 
 
 ###### Tests of normality ###############################################
@@ -1444,7 +1463,9 @@ The results for the Hierarchical Linear Models are presented separately for each
 
 ## Session distance
 
-In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in
+In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_km.
+
+The residuals were normally distributed (*p* = `r round(ntest_shapiro_km $p.value, 2)` ). @fig-sessionkm_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
 
 ::: landscape
 ```{r}
