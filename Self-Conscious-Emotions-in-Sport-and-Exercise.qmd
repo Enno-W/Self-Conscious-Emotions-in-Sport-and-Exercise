@@ -449,43 +449,64 @@ missings_percentage <-round((original_data_missings_amount / original_data_amoun
 df <- df %>%
   mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
+### Speed
+df$Speed_1<-(df[,"SessionKM_1"]/df[,"SessionH_1"])*60
+df$Speed_2<-(df[,"SessionKM_2"]/df[,"SessionH_2"])*60
+df$Speed_3<-(df[,"SessionKM_3"]/df[,"SessionH_3"])*60
+df$Speed_4<-(df[,"SessionKM_4"]/df[,"SessionH_4"])*60
+df$Speed_5<-(df[,"SessionKM_5"]/df[,"SessionH_5"])*60
+df$Speed_6<-(df[,"SessionKM_6"]/df[,"SessionH_6"])*60
+
+df$Speed_1_class <- ifelse(df$Speed_1 < 5, "Swimming",
+                     ifelse(df$Speed_1 <= 20, "Running", "Cycling"))
+
+df$Speed_2_class <- ifelse(df$Speed_2 < 5, "Swimming",
+                     ifelse(df$Speed_2 <= 20, "Running", "Cycling"))
+
+df$Speed_3_class <- ifelse(df$Speed_3 < 5, "Swimming",
+                     ifelse(df$Speed_3 <= 20, "Running", "Cycling"))
+
+df$Speed_4_class <- ifelse(df$Speed_4 < 5, "Swimming",
+                     ifelse(df$Speed_4 <= 20, "Running", "Cycling"))
+
+df$Speed_5_class <- ifelse(df$Speed_5 < 5, "Swimming",
+                     ifelse(df$Speed_5 <= 20, "Running", "Cycling"))
+
+df$Speed_6_class <- ifelse(df$Speed_6 < 5, "Swimming",
+                     ifelse(df$Speed_6 <= 20, "Running", "Cycling"))
+
 #### sport specific z-scaling ####
 
-sum(is.na(df[,c("WeeklyKM_base", "SessionKM_1", "SessionKM_2", "SessionKM_3", "SessionKM_4", "SessionKM_5", "SessionKM_6")] ))
+##For baseline (According to sport Code)
 df <- df %>%
   group_by(SportCode) %>%
-  mutate(across(c(WeeklyKM_base, SessionKM_1, SessionKM_2, SessionKM_3, SessionKM_4, SessionKM_5, SessionKM_6),
-                ~ scale(.x)))
-sum(is.na(df[,c("WeeklyKM_base", "SessionKM_1", "SessionKM_2", "SessionKM_3", "SessionKM_4", "SessionKM_5", "SessionKM_6")] ))
+  mutate(WeeklyKM_base = as.numeric(scale(WeeklyKM_base))) %>%
+  ungroup()
 
-sum(is.na(df[,c("WeeklyKM_base", "SessionH_1", "SessionH_2", "SessionH_3", "SessionH_4", "SessionH_5", "SessionH_6")] ))
+### For weekly variables ##
+
+for (i in 1:6) {
+  speed_var <- paste0("Speed_", i)
+  class_var <- paste0("Speed_", i, "_class")
+  z_var     <- paste0("Speed_", i, "_z")
+  
+  df <- df %>%
+    group_by(.data[[class_var]]) %>%
+    mutate(!!z_var := as.numeric(scale(.data[[speed_var]]))) %>%
+    ungroup()
+}
+
 df <- df %>%
-  group_by(SportCode) %>%
-  mutate(across(c(WeeklyH_base, SessionH_1, SessionH_2, SessionH_3, SessionH_4, SessionH_5, SessionH_6),
-                ~ scale(.x)))
-sum(is.na(df[,c("WeeklyKM_base", "SessionH_1", "SessionH_2", "SessionH_3", "SessionH_4", "SessionH_5", "SessionH_6")] ))
-
-####z-Standardizing all variables####
- zstandard_varnames<-df %>% ungroup() %>% dplyr::select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" , - "WeeklyKM_base", "WeeklyH_base" , -"SportCode", -ends_with("_ave")) %>% names() #https://stackoverflow.com/questions/38511743/adding-missing-grouping-variables-message-in-dplyr-in-r
-df_z <- df %>%  mutate_at(zstandard_varnames, ~ (scale(.))) # Hier werden dann [,1] im Variablen angezeigt, aber nur im Viewer???
-
-
+  group_by(Speed_1_class) %>%
+  mutate(Speed_1_ztest = as.numeric(scale(Speed_1))) %>%
+  ungroup()
+df$Speed_1_z == df$Speed_1_ztest
  
 #####Convert Data to long format#####
 weekly_measures<-df %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
 
 long_df <- df %>%
-  pivot_longer(
-    cols = all_of(weekly_measures), # 
-    names_to = c(".value", "Time"),   # Split into a base name and the timepoint
-    names_pattern = "(.*)_(\\d+)"     # Regex to split column names like "Goal_1"
-  ) %>%
-  mutate(
-    Time = as.numeric(Time)           # Convert extracted timepoint to numeric
-  )
-
-long_df_z <- df_z %>%
   pivot_longer(
     cols = all_of(weekly_measures), # 
     names_to = c(".value", "Time"),   # Split into a base name and the timepoint
@@ -514,10 +535,12 @@ long_df[, c("Pride_centered", "Dynamics_centered", "PA_gm_centered", "Locus_cent
 # Group mean centering
 long_df <- long_df %>%
   group_by(ID) %>%
-  mutate(across(c(Pride, PA, Pride,PA), 
+  mutate(across(c(Pride, PA), 
                 ~ . - mean(., na.rm = TRUE), 
                 .names = "{.col}_gm_centered")) %>%
   ungroup()
+
+## Rank or Log transformations
 long_df$SessionKM_lead1_rank<-rank(long_df$SessionKM_lead1)
 long_df$SessionKM_lead1_log <- log(long_df$SessionKM_lead1)
 long_df$SessionKM_lead1_log[is.infinite(long_df$SessionKM_lead1_log)] <- 0.000001
@@ -544,7 +567,7 @@ long_df$ID<-long_df$ID %>% as.factor()
 ##### Null model and ICC ####
 
 null_model_km<- lme(SessionKM_lead1 ~ 1, 
-                      data=long_df, 
+                      data=long_df %>% filter(SportCode!=2), 
                       random= ~1|ID, 
                       method="ML", 
                       na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
@@ -561,7 +584,7 @@ model_SessionKM_1 <- lme(
   fixed =   SessionKM_lead1 ~   
    Pride_gm_centered* PA_gm_centered,
   random = ~ 1 | ID,
-  data = long_df, 
+  data = long_df%>% filter(SportCode!=2), 
   na.action=na.omit, 
   
   method = "REML"
@@ -574,7 +597,7 @@ model_SessionKM_2 <- lme(
    Pride_gm_centered* Locus_centered + 
    Pride_gm_centered* Globality_centered ,
   random = ~ 1 | ID,
-  data = long_df, 
+  data = long_df%>% filter(SportCode!=2), 
   na.action=na.omit, 
 
   method = "REML"
@@ -591,7 +614,7 @@ model_SessionKM_3 <- lme(
     Pride_gm_centered * Power_centered,
   random = ~ 1 | ID,
 
-  data = long_df, 
+  data = long_df%>% filter(SportCode!=2), 
   na.action=na.omit, 
   method = "REML"
 )
@@ -649,7 +672,7 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
 
 # Extract Residuals
-SessionKM_residuals <- hlm_resid(model_SessionKM_2, level=1, include.ls = T) 
+SessionKM_residuals <- hlm_resid(model_SessionKM_1, level=1, include.ls = T) 
 ########Normality Plots #####
 # Normality Plot with least square residuals
 ndist_plot_km_ls <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
