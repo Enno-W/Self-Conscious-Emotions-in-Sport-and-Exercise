@@ -1089,7 +1089,7 @@ model_SessionRPE_3 <- lme(
 )
 
 model_SessionRPE_4 <- lme(
-  fixed = SessionRPE ~ 
+  fixed = SessionRPE_lead1 ~ 
     Pride_gm_centered* PA_gm_centered+ 
     Pride_gm_centered* Dynamics_centered +
     Pride_gm_centered* Locus_centered + 
@@ -1098,6 +1098,7 @@ model_SessionRPE_4 <- lme(
     Pride_gm_centered* Achievement_centered + 
     Pride_gm_centered* Power_centered,
   random = ~ 1 | ID,
+ correlation = nlme::corAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit,
     method = "REML"
@@ -1474,7 +1475,12 @@ heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.
 
 We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
 
-For the hierarchical linear models,the time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts the running distance in the next running session. At the same time, people who less proud on average do not necessarily run more. \## Participants
+For the hierarchical linear models,the time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
+
+The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion.
+We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then checked for three statistical assumptions: the absence of multicollinearity, homoscedasticity, and the normal distribution of residuals. We also assessed if a correlation matrix improved the model fit.
+
+## Participants
 
 The participants were `r descriptives_list$Age_mean` old on average (*SD* = `r descriptives_list$Age_sd`) ranging from `r descriptives_list$Age_min` to `r descriptives_list$Age_max` years
 
@@ -1485,8 +1491,6 @@ The participants were `r descriptives_list$Age_mean` old on average (*SD* = `r d
 # Results
 
 Correlations are shown in @fig-corrplot.
-
-The results for the Hierarchical Linear Models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion.
 
 
 ## Session distance
@@ -1503,11 +1507,12 @@ The residuals were normally distributed (*p* = `r round(ntest_ks_h $p.value, 2)`
 
 ## Session Rate of Perceived Exhaustion
 
-In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict the rate of perceived exhaustion. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_h.
+ The regression coefficients are shown in @tbl-hlmtable_h. The third model with all predictors shows the lowest AIC and log likelihood. A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
 
 The residuals were normally distributed in a Kolmogorov-Smirnov test (*p* = `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm [LIT]. @fig-sessionh_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data. 
 
-To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`. 
+To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`. To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time. However, this did not result in a better model fit, so we used the model without the correlation structure (Model 3). 
+
 
 
 ::: landscape
