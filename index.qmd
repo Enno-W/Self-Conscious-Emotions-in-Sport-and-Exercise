@@ -417,7 +417,7 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 # Add references or cite: https://bit.ly/scemotions_edit_references
 ```
 
-```{r data import and manipulation}
+```{r data import and transformation}
 load("PRIMOCA_data_forR_20240203.Rdata")
 df<-PRIMOCA_data_forR_20240203
 
@@ -432,7 +432,6 @@ df <- handle_hyphen(df, "WeeklyH_base") # also a function from the function scri
 ####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
 
 df$SportCode<-df$SportCode %>% dplyr::recode(`3` = 1, `4` = 1)
-
 
 #### Making everything numeric####
 df[] <- sapply(df, as.numeric)
@@ -483,32 +482,36 @@ df <- df %>%
   mutate(WeeklyKM_base = as.numeric(scale(WeeklyKM_base))) %>%
   ungroup()
 
-### For weekly variables ##
+### For repeated measures ##
 
+# Speed
 for (i in 1:6) {
   speed_var <- paste0("Speed_", i)
   class_var <- paste0("Speed_", i, "_class")
-  z_var     <- paste0("Speed_", i, "_z")
-  
+
   df <- df %>%
     group_by(.data[[class_var]]) %>%
-    mutate(!!z_var := as.numeric(scale(.data[[speed_var]]))) %>%
+    mutate(!!speed_var := as.numeric(scale(.data[[speed_var]]))) %>%
     ungroup()
 }
 
-df <- df %>%
-  group_by(Speed_1_class) %>%
-  mutate(Speed_1_ztest = as.numeric(scale(Speed_1))) %>%
-  ungroup()
-df$Speed_1_z == df$Speed_1_ztest
+# KM
+for (i in 1:6) {
+  km_var <- paste0("SessionKM_", i)
+  class_var <- paste0("Speed_", i, "_class")
  
-#####Convert Data to long format#####
-weekly_measures<-df %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
+  df <- df %>%
+    group_by(.data[[class_var]]) %>%
+    mutate(!!km_var := as.numeric(scale(.data[[km_var]]))) %>%
+    ungroup()
+}
 
+#####Convert Data to long format#####
+repeated_measures1<-df %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
 long_df <- df %>%
   pivot_longer(
-    cols = all_of(weekly_measures), # 
+    cols = all_of(repeated_measures1), # 
     names_to = c(".value", "Time"),   # Split into a base name and the timepoint
     names_pattern = "(.*)_(\\d+)"     # Regex to split column names like "Goal_1"
   ) %>%
@@ -567,7 +570,7 @@ long_df$ID<-long_df$ID %>% as.factor()
 ##### Null model and ICC ####
 
 null_model_km<- lme(SessionKM_lead1 ~ 1, 
-                      data=long_df %>% filter(SportCode!=2), 
+                      data=long_df, 
                       random= ~1|ID, 
                       method="ML", 
                       na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
@@ -584,7 +587,7 @@ model_SessionKM_1 <- lme(
   fixed =   SessionKM_lead1 ~   
    Pride_gm_centered* PA_gm_centered,
   random = ~ 1 | ID,
-  data = long_df%>% filter(SportCode!=2), 
+  data = long_df, 
   na.action=na.omit, 
   
   method = "REML"
@@ -597,7 +600,7 @@ model_SessionKM_2 <- lme(
    Pride_gm_centered* Locus_centered + 
    Pride_gm_centered* Globality_centered ,
   random = ~ 1 | ID,
-  data = long_df%>% filter(SportCode!=2), 
+  data = long_df, 
   na.action=na.omit, 
 
   method = "REML"
@@ -614,7 +617,7 @@ model_SessionKM_3 <- lme(
     Pride_gm_centered * Power_centered,
   random = ~ 1 | ID,
 
-  data = long_df%>% filter(SportCode!=2), 
+  data = long_df, 
   na.action=na.omit, 
   method = "REML"
 )
@@ -672,7 +675,7 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
 
 # Extract Residuals
-SessionKM_residuals <- hlm_resid(model_SessionKM_1, level=1, include.ls = T) 
+SessionKM_residuals <- hlm_resid(model_SessionKM_2, level=1, include.ls = T) 
 ########Normality Plots #####
 # Normality Plot with least square residuals
 ndist_plot_km_ls <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
@@ -789,7 +792,7 @@ outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, y = ID)) +
 
 
 ##### Null model and ICC ####
-null_model_h<- lme(SessionH_lead1 ~ 1, 
+null_model_h<- lme(SessionH_lead1_log ~ 1, 
                       data=long_df, 
                       random= ~1|ID, 
                       method="ML", 
@@ -801,7 +804,7 @@ icc_h<-performance::icc(null_model_h)
 
 
 model_SessionH_1 <- lme(
-  fixed =   SessionH_lead1 ~   
+  fixed =   SessionH_lead1_log ~   
     Pride_gm_centered* PA_gm_centered,
   random = ~ 1 | ID,
   data = long_df, 
@@ -811,7 +814,7 @@ model_SessionH_1 <- lme(
 )
 
 model_SessionH_2 <- lme(
-  fixed = SessionH_lead1 ~ 
+  fixed = SessionH_lead1_log ~ 
         Pride_gm_centered* PA_gm_centered + 
     Pride_gm_centered* Dynamics_centered + 
     Pride_gm_centered* Locus_centered + 
@@ -824,7 +827,7 @@ model_SessionH_2 <- lme(
 )
 
 model_SessionH_3 <- lme(
-  fixed = SessionH_lead1 ~ 
+  fixed = SessionH_lead1_log ~ 
     Pride_gm_centered * PA_gm_centered+ 
     Pride_gm_centered * Dynamics_centered + 
     Pride_gm_centered * Locus_centered + 
@@ -1218,8 +1221,9 @@ model_SessionRPE_3_lmer <- lmer(
   REML = TRUE
 )
 
-vif(model_SessionRPE_3_lmer)
+vif_RPE_min<-vif(model_SessionRPE_3_lmer) %>% min() %>% round (2)
 
+vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round (2)
 
 ###### Tests of normality ###############################################
 
@@ -1322,9 +1326,9 @@ corr_table<-df[,correlation_variables] %>%
   generate_correlation_table2(c(
     "1. Pride", 
     "2. Hubris", 
-    "3. Weekly Training Distance", 
-    "4. Weekly Training Hours", 
-    "5. Weekly Training RPE", 
+    "3. Session Training Distance", 
+    "4. Session Training Hours", 
+    "5. Session Training RPE", 
     "6. Positive Affect", 
     "7. Negative Affect", 
     "8. Achievement", 
@@ -1348,9 +1352,9 @@ df_stat<-get_descriptive_table(df[, correlation_variables], language = "German")
 df_stat$Variable <- c(
   "1. Pride", 
     "2. Hubris", 
-    "3. Weekly Training Distance", 
-    "4. Weekly Training Hours", 
-    "5. Weekly Training RPE", 
+    "3. Session Training Distance", 
+    "4. Session Training Hours", 
+    "5. Session Training RPE", 
     "6. Positive Affect", 
     "7. Negative Affect", 
     "8. Achievement", 
@@ -1484,11 +1488,27 @@ Correlations are shown in @fig-corrplot.
 
 The results for the Hierarchical Linear Models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion.
 
+
 ## Session distance
 
-In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_km.
+In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values reported by swimmers, runners, and triathlets. To allow  We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_km.
 
-The residuals were normally distributed (*p* = `r round(ntest_shapiro_km $p.value, 2)` ). @fig-sessionkm_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+The residuals were normally distributed (*p* = `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+
+## Session duration
+
+In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_h.
+
+The residuals were normally distributed (*p* = `r round(ntest_ks_h $p.value, 2)` ). @fig-sessionh_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+
+## Session Rate of Perceived Exhaustion
+
+In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict the rate of perceived exhaustion. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_h.
+
+The residuals were normally distributed in a Kolmogorov-Smirnov test (*p* = `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm [LIT]. @fig-sessionh_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data. 
+
+To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`. 
+
 
 ::: landscape
 ```{r}
@@ -1581,6 +1601,8 @@ globality_plot
 ```
 
 # Discussion
+
+The variance influence factors suggest low multicollinearity [for a discussion see @Obrien2007], which is also evident from the correlation table. 
 
 ## Limitations and Future Directions
 
