@@ -444,6 +444,12 @@ original_data_amount <-  df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gen
 original_data_missings_amount <- df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
 missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
 
+#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
+descriptives_list <- mean_sd_median_min_max(df)
+vars_not_normal<-which_var_not_normal(df)
+vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
+
+
 ####rename the gender ####
 df <- df %>%
   mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
@@ -544,17 +550,8 @@ long_df <- long_df %>%
   ungroup()
 
 ## Rank or Log transformations
-long_df$SessionKM_lead1_rank<-rank(long_df$SessionKM_lead1)
-long_df$SessionKM_lead1_log <- log(long_df$SessionKM_lead1)
-long_df$SessionKM_lead1_log[is.infinite(long_df$SessionKM_lead1_log)] <- 0.000001
-
-long_df$SessionH_lead1_rank <- rank(long_df$SessionH_lead1)
 long_df$SessionH_lead1_log <- log(long_df$SessionH_lead1)
 long_df$SessionH_lead1_log[is.infinite(long_df$SessionH_lead1_log)] <- 0.000001
-
-long_df$SessionRPE_lead1_rank <- rank(long_df$SessionRPE_lead1)
-long_df$SessionRPE_lead1_log <- log(long_df$SessionRPE_lead1)
-long_df$SessionRPE_lead1_log[is.infinite(long_df$SessionRPE_lead1_log)] <- 0.000001
 
 
 long_df$ID<-long_df$ID %>% as.factor()
@@ -562,6 +559,208 @@ long_df$ID<-long_df$ID %>% as.factor()
 
 
 ```
+
+
+```{r values}
+#| include: false
+
+vars_not_normal_with_p_values_z<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
+SessionKM_shapirotest_after_z<-shapiro.test(df$WeeklyKM_base)
+
+#### Power analysis ####
+pwr_result <- pwr.r.test(n = NULL,         
+                     r = 0.5,           
+                     sig.level = 0.05,  
+                     power = 0.95,      
+                     alternative = "greater") 
+
+#
+
+```
+
+```{r tables}
+#| include: false
+
+
+#### correlation table ####
+pride_variables<-c("Pride_base", "Hubris_base")
+base_training_and_affect_variables<-df %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
+motive_variables <- c("Achievement", "Affiliation", "Power", df %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
+attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
+correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
+corr_table<-df[,correlation_variables] %>% 
+  generate_correlation_table2(c(
+    "1. Pride", 
+    "2. Hubris", 
+    "3. Session Training Distance", 
+    "4. Session Training Hours", 
+    "5. Session Training RPE", 
+    "6. Positive Affect", 
+    "7. Negative Affect", 
+    "8. Achievement", 
+    "9. Affiliation", 
+    "10. Power", 
+    "11. Hope for Success", 
+    "12. Fear of Failure", 
+    "13. Hope for Belonging",
+    "14. Fear of Rejection",
+    "15. Hope for Control",
+    "16. Fear of Loss of Control",
+    "17. Locus",
+    "18. Dynamics",
+    "19. Controllability"
+  ))
+
+#### Skewness, Kurtosis and min-max range table###############################################
+
+df_stat<-get_descriptive_table(df[, correlation_variables], language = "German")
+
+df_stat$Variable <- c(
+  "1. Pride", 
+    "2. Hubris", 
+    "3. Session Training Distance", 
+    "4. Session Training Hours", 
+    "5. Session Training RPE", 
+    "6. Positive Affect", 
+    "7. Negative Affect", 
+    "8. Achievement", 
+    "9. Affiliation", 
+    "10. Power", 
+    "11. Hope for Success", 
+    "12. Fear of Failure", 
+    "13. Hope for Belonging",
+    "14. Fear of Rejection",
+    "15. Hope for Control",
+    "16. Fear of Loss of Control",
+    "17. Locus",
+    "18. Dynamics",
+    "19. Controllability"
+)
+
+table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
+ 
+
+```
+
+```{r graphs}
+#| include: false
+
+
+custom_labels <- c(
+    "Pride_base" = "1. Pride", 
+    "Hubris_base" = "2. Hubris", 
+    "WeeklyKM_base" = "3. Weekly Training Distance (KM)", 
+    "WeeklyH_base" = "4. Weekly Training Hours", 
+    "WeeklyRPE_base" = "5. Weekly Training RPE", 
+    "PA_base" = "6. Positive Affect", 
+    "NA_base" = "7. Negative Affect", 
+    "Achievement" = "8. Achievement", 
+    "Affiliation" = "9. Affiliation", 
+    "Power" = "10. Power", 
+    "Gen_Success_hope" = "11. Hope for Success", 
+    "Gen_Failure_fear" = "12. Fear of Failure", 
+    "Gen_Belonging_hope" = "13. Hope for Belonging", 
+    "Gen_Rejection_fear" = "14. Fear of Rejection", 
+    "Gen_Control_hope" = "15. Hope for Control", 
+    "Gen_LossControl_fear" = "16. Fear of Loss of Control", 
+    "Locus" = "17. Locus", 
+    "Dynamics" = "18. Dynamics", 
+    "Controlability_self" = "19. Self-Controllability"
+)
+
+#print_all_histograms(df, bins_n = 30)
+#print_all_histograms(df[correlation_variables])
+
+ violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
+
+
+# long_df_filtered <- na.omit(long_df[, c(
+#   "SessionKM_lead1", "Pride_gm_centered", "Dynamics_centered",
+#   "PA_gm_centered", "Locus_centered", "Globality_centered",
+#   "Affiliation_centered", "Achievement_centered", "Power_centered",
+#   "Time", "ID"
+# )])
+# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
+# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
+
+
+# hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
+#   geom_line(show.legend = F)+
+#   geom_point(aes(x= Time, y= SessionKM_log), show.legend = F)+
+#   labs(x = "Time", y = "Fitted Goal", title = "Predicted KM by ID") +
+#   theme_minimal()+
+#   labs(
+#     x = "Session No. ",
+#     y = "Running Distance",
+#     color = "ID"
+#   )
+
+
+
+
+# Heatmap
+p.mat <- cor_pmat(df[, correlation_variables])
+str(df[, correlation_variables])
+correlation_coefficients<-cor(df[, correlation_variables], use = "pairwise.complete.obs")
+
+ggcorrplot(correlation_coefficients,
+  p.mat = p.mat,
+  type = NULL, insig = "blank", method= "circle", tl.srt = 90+
+    scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
+  scale_y_discrete(labels = custom_labels)
+)
+
+heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.srt = 90,  p.mat = p.mat, insig = "blank")+
+  scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
+  scale_y_discrete(labels = custom_labels)#https://www.youtube.com/watch?v=E3De2A73ako&t=1s
+```
+
+```{r}
+#| label: fig-corrplot
+#| fig-cap: Heatmap
+#| apa-note: This is the note below the figure.
+#| fig-height: 10
+#| fig-width: 10
+heatmap
+```
+
+
+```{r}
+#| label: fig-violin
+#| fig-cap: Violin Plot with boxplots
+#| apa-note: This is the note below the figure.
+#| fig-height: 15
+#| fig-width: 10
+violin_plots
+```
+
+# Note
+In this section, all data are automatically generated from the R code. You can access the full code [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
+# Study 1
+
+## Participants
+
+## Measures
+
+(see article)
+
+
+## Procedure 
+
+(see article)
+
+
+## Analysis
+First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base` ), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`)  were not normally distributed. We then calculated the speed from the time and distance values for each session, and found that there was a great variety. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3) `
+Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated using z-values. For the analysis, the programming language R [@rlanguage2024] was used. 
+
+## Results
+
+
+Correlations are shown in @fig-corrplot.
+
+
+# Study 2
 
 ```{r HLM Table for KM}
 #| include: false
@@ -1104,6 +1303,9 @@ model_SessionRPE_4 <- lme(
     method = "REML"
 )
 
+## correlation matrix does not improve the model: 
+intercorr_test_rpe<-anova(model_SessionRPE_4, model_SessionRPE_3 )
+
 ### Table Output #####
 hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe, 
                      "Model 1" = model_SessionRPE_1, 
@@ -1130,8 +1332,7 @@ hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe,
   ))
 # only use fixed effects in the parentheses
 
-
-
+Rsquared_rpe<-r.squaredGLMM(model_SessionRPE_3)
 ```
 
 ```{r SessionHRPE residual graphs and assumptions check}
@@ -1289,146 +1490,12 @@ outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, y = ID)) +
 ```{r exploring assumptions for the HLMs}
 #| include: false
 
-
-```
-
-```{r values}
-#| include: false
-
-#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
-descriptives_list <- mean_sd_median_min_max(df)
-vars_not_normal<-which_var_not_normal(df)
-vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", as.character(round(.,3)))))
+## These are some ideas for visualisations of the models
+# Diagnostic plots for model
+Homoscedasticity_plotH <-plot_model(model_SessionRPE_3, type = "diag") 
 
 
-
-#### Power analysis ####
-pwr_result <- pwr.r.test(n = NULL,         
-                     r = 0.5,           
-                     sig.level = 0.05,  
-                     power = 0.95,      
-                     alternative = "greater") 
-
-#
-
-```
-
-```{r tables}
-#| include: false
-
-
-#### correlation table ####
-pride_variables<-c("Pride_base", "Hubris_base")
-base_training_and_affect_variables<-df %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
-motive_variables <- c("Achievement", "Affiliation", "Power", df %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
-attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
-correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
-corr_table<-df[,correlation_variables] %>% 
-  generate_correlation_table2(c(
-    "1. Pride", 
-    "2. Hubris", 
-    "3. Session Training Distance", 
-    "4. Session Training Hours", 
-    "5. Session Training RPE", 
-    "6. Positive Affect", 
-    "7. Negative Affect", 
-    "8. Achievement", 
-    "9. Affiliation", 
-    "10. Power", 
-    "11. Hope for Success", 
-    "12. Fear of Failure", 
-    "13. Hope for Belonging",
-    "14. Fear of Rejection",
-    "15. Hope for Control",
-    "16. Fear of Loss of Control",
-    "17. Locus",
-    "18. Dynamics",
-    "19. Controllability"
-  ))
-
-#### Skewness, Kurtosis and min-max range table###############################################
-
-df_stat<-get_descriptive_table(df[, correlation_variables], language = "German")
-
-df_stat$Variable <- c(
-  "1. Pride", 
-    "2. Hubris", 
-    "3. Session Training Distance", 
-    "4. Session Training Hours", 
-    "5. Session Training RPE", 
-    "6. Positive Affect", 
-    "7. Negative Affect", 
-    "8. Achievement", 
-    "9. Affiliation", 
-    "10. Power", 
-    "11. Hope for Success", 
-    "12. Fear of Failure", 
-    "13. Hope for Belonging",
-    "14. Fear of Rejection",
-    "15. Hope for Control",
-    "16. Fear of Loss of Control",
-    "17. Locus",
-    "18. Dynamics",
-    "19. Controllability"
-)
-
-table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
- 
-
-```
-
-```{r graphs}
-#| include: false
-
-
-custom_labels <- c(
-    "Pride_base" = "1. Pride", 
-    "Hubris_base" = "2. Hubris", 
-    "WeeklyKM_base" = "3. Weekly Training Distance (KM)", 
-    "WeeklyH_base" = "4. Weekly Training Hours", 
-    "WeeklyRPE_base" = "5. Weekly Training RPE", 
-    "PA_base" = "6. Positive Affect", 
-    "NA_base" = "7. Negative Affect", 
-    "Achievement" = "8. Achievement", 
-    "Affiliation" = "9. Affiliation", 
-    "Power" = "10. Power", 
-    "Gen_Success_hope" = "11. Hope for Success", 
-    "Gen_Failure_fear" = "12. Fear of Failure", 
-    "Gen_Belonging_hope" = "13. Hope for Belonging", 
-    "Gen_Rejection_fear" = "14. Fear of Rejection", 
-    "Gen_Control_hope" = "15. Hope for Control", 
-    "Gen_LossControl_fear" = "16. Fear of Loss of Control", 
-    "Locus" = "17. Locus", 
-    "Dynamics" = "18. Dynamics", 
-    "Controlability_self" = "19. Self-Controllability"
-)
-
-#print_all_histograms(df, bins_n = 30)
-#print_all_histograms(df[correlation_variables])
-
- violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
-
-
-# long_df_filtered <- na.omit(long_df[, c(
-#   "SessionKM_lead1", "Pride_gm_centered", "Dynamics_centered",
-#   "PA_gm_centered", "Locus_centered", "Globality_centered",
-#   "Affiliation_centered", "Achievement_centered", "Power_centered",
-#   "Time", "ID"
-# )])
-# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
-# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
-
-
-# hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
-#   geom_line(show.legend = F)+
-#   geom_point(aes(x= Time, y= SessionKM_log), show.legend = F)+
-#   labs(x = "Time", y = "Fitted Goal", title = "Predicted KM by ID") +
-#   theme_minimal()+
-#   labs(
-#     x = "Session No. ",
-#     y = "Running Distance",
-#     color = "ID"
-#   )
+Homoscedasticity_plot <-plot_model(model_SessionKM_4, type = "resid") 
 
 pride_dynamics_plot<- plot_model(
   model_SessionKM_4,
@@ -1436,62 +1503,37 @@ pride_dynamics_plot<- plot_model(
   terms = c("Pride_gm_centered", "Dynamics_centered"),
   title = "Interaction: Pride × Dynamics"
 )
-
-
-
-
 globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globality_centered"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
 
-# globality_plot<-plot_model(model_SessionKM, type = "pred", terms = c("Globality", "Pride"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality") # Could refine with an interaction plot
-
-# Diagnostic plots for model
-Homoscedasticity_plotH <-plot_model(model_SessionKM_4, type = "diag") 
-
-
-Homoscedasticity_plot <-plot_model(model_SessionKM_4, type = "resid") 
-
-# Heatmap
-p.mat <- cor_pmat(df[, correlation_variables])
-str(df[, correlation_variables])
-correlation_coefficients<-cor(df[, correlation_variables], use = "pairwise.complete.obs")
-
-ggcorrplot(correlation_coefficients,
-  p.mat = p.mat,
-  type = NULL, insig = "blank", method= "circle", tl.srt = 90+
-    scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
-  scale_y_discrete(labels = custom_labels)
-)
-
-heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.srt = 90,  p.mat = p.mat, insig = "blank")+
-  scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
-  scale_y_discrete(labels = custom_labels)#https://www.youtube.com/watch?v=E3De2A73ako&t=1s
 ```
 
-# Method
 
-@kipchoge2020 @rstudio2024
+
+
+
 
 ## Analysis
 
-We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. A reproducible version of the results section of this article is available at https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise. 
 
-For the hierarchical linear models,the time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
+The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
+
+We used the nlme-package [@nlme] for the hierarchical linear models. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
 
 The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion.
 We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then checked for three statistical assumptions: the absence of multicollinearity, homoscedasticity, and the normal distribution of residuals. We also assessed if a correlation matrix improved the model fit.
 
 ## Participants
 
-The participants were `r descriptives_list$Age_mean` old on average (*SD* = `r descriptives_list$Age_sd`) ranging from `r descriptives_list$Age_min` to `r descriptives_list$Age_max` years
-
 ## Measures
+
+(see article)
 
 ## Procedure
 
-# Results
+(see article)
 
-Correlations are shown in @fig-corrplot.
-
+## Results
 
 ## Session distance
 
@@ -1507,12 +1549,26 @@ The residuals were normally distributed (*p* = `r round(ntest_ks_h $p.value, 2)`
 
 ## Session Rate of Perceived Exhaustion
 
- The regression coefficients are shown in @tbl-hlmtable_h. The third model with all predictors shows the lowest AIC and log likelihood. A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
+ The regression coefficients are shown in @tbl-hlmtable_h. The third model with all predictors shows the lowest AIC and log likelihood. To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time. However, this did not result in a better model fit ( *p* = `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure (Model 3). 
+ 
+A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
 
-The residuals were normally distributed in a Kolmogorov-Smirnov test (*p* = `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm [LIT]. @fig-sessionh_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data. 
+The residuals were normally distributed in a Kolmogorov-Smirnov test (*p* = `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm [LIT]. @fig-sessionrpe_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data. 
 
-To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`. To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time. However, this did not result in a better model fit, so we used the model without the correlation structure (Model 3). 
+To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`. 
 
+The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_rpe[1]` and *R^2^~conditional~* = `r Rsquared_rpe[2]`.
+
+
+```{r}
+#| label: fig-sessionrpe_assumptions
+#| fig-cap: Histogram of Residuals
+#| apa-note: This is the note below the figure.
+#| fig-height: 10
+#| fig-width: 10
+(qqplot_rpe + resid_plot_rpe)
+  
+```
 
 
 ::: landscape
@@ -1523,6 +1579,7 @@ To assess multicollinearity, we computed the variance influence factor which ran
 corr_table
 
 ```
+:::
 
 ```{r}
 #| label: tbl-hlmtable_km
@@ -1546,16 +1603,7 @@ hlmtable_h
 #| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. In Model 4, the dependent variable was log-transformed to address heteroscedasticity and normality of residues. The fit indices of Model 4 are not directly comparable to models 1-3. 
 hlmtable_rpe
 ```
-:::
 
-```{r}
-#| label: fig-corrplot
-#| fig-cap: Heatmap
-#| apa-note: This is the note below the figure.
-#| fig-height: 10
-#| fig-width: 10
-heatmap
-```
 
 ```{r}
 #| label: fig-sessionkm_assumptions
@@ -1577,24 +1625,6 @@ heatmap
   
 ```
 
-```{r}
-#| label: fig-sessionrpe_assumptions
-#| fig-cap: Histogram of Residuals
-#| apa-note: This is the note below the figure.
-#| fig-height: 10
-#| fig-width: 10
-(qqplot_rpe + resid_plot_rpe)
-  
-```
-
-```{r}
-#| label: fig-violin
-#| fig-cap: Violin Plot with boxplots
-#| apa-note: This is the note below the figure.
-#| fig-height: 15
-#| fig-width: 10
-violin_plots
-```
 
 ```{r}
 #| label: fig-globality_times_pride
