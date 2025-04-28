@@ -27,7 +27,7 @@ author-note:
     gratitude: ~
     authorship-agreements: ~
 link-citations: true
-abstract: "Self-conscious emotions play a crucial role in sports and exercise by reflecting self-related goal achievements. Traditionally, these emotions are explained through explicit attributional processes. However, implicit processes that influence self-related goal orientation are often overlooked. This cross-sectional correlation study reveals that the implicit affiliation motive negatively correlates with authentic pride in ambitious recreational athletes. Additionally, a positive correlation exists between authentic pride and positive affect. No significant relationships were found between these emotions and physical activity. Explicit attribution styles were not associated with either pride or physical activity. Therefore, considering implicit processes in recreational athletes as potential determinants of self-conscious emotions appears to be more significant than previously thought."
+abstract: "Self-conscious emotions play a crucial role in sports and exercise by reflecting self-related goal achievements. Traditionally, these emotions are explained through explicit attributional processes. However, implicit processes that influence self-related goal orientation are often overlooked."
 keywords: [keyword1, keyword2, keyword3]
 bibliography: bibliography.bib
 format:
@@ -159,13 +159,15 @@ generate_correlation_table <- function(df, display_names) {
 }
 
 ## without descriptive statistics next to correlations
-generate_correlation_table2 <- function(df, display_names) {
+generate_correlation_table2 <- function(df, display_names, method = c("pearson", "spearman")) {
   library(Hmisc)
   library(flextable)
   library(officer)
   
+  method <- match.arg(method)  # Ensure the method is either "pearson" or "spearman"
+  
   # Compute correlation matrix and p-values
-  corr_result <- rcorr(as.matrix(df))
+  corr_result <- rcorr(as.matrix(df), type = method)
   r <- round(corr_result$r, 2)
   p <- corr_result$P
   
@@ -191,7 +193,7 @@ generate_correlation_table2 <- function(df, display_names) {
   
   # Turn into a data frame with display names
   formatted_df <- data.frame(Measure = display_names, formatted_matrix, stringsAsFactors = FALSE)
-  colnames(formatted_df)[2:ncol(formatted_df)] <- as.character(1:(ncol(formatted_df)-1))
+  colnames(formatted_df)[2:ncol(formatted_df)] <- as.character(1:(ncol(formatted_df) - 1))
   
   # Create flextable
   flextable(formatted_df) %>%
@@ -589,7 +591,7 @@ motive_variables <- c("Achievement", "Affiliation", "Power", df %>% ungroup() %>
 attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
 corr_table<-df[,correlation_variables] %>% 
-  generate_correlation_table2(c(
+  generate_correlation_table2(method= "spearman",c(
     "1. Pride", 
     "2. Hubris", 
     "3. Session Training Distance", 
@@ -695,24 +697,27 @@ custom_labels <- c(
 #     color = "ID"
 #   )
 
+# Compute Spearman correlation coefficients
+correlation_coefficients <- cor(df[, correlation_variables], use = "pairwise.complete.obs", method = "spearman")
 
+# Compute p-values for the Spearman correlations
+p.mat <- cor_pmat(df[, correlation_variables], method = "spearman")
 
-
-# Heatmap
-p.mat <- cor_pmat(df[, correlation_variables])
-str(df[, correlation_variables])
-correlation_coefficients<-cor(df[, correlation_variables], use = "pairwise.complete.obs")
-
-ggcorrplot(correlation_coefficients,
+# Generate the heatmap
+heatmap <- ggcorrplot(
+  correlation_coefficients,
+  method = "circle",
+  type = NULL,
+  tl.srt = 90,
   p.mat = p.mat,
-  type = NULL, insig = "blank", method= "circle", tl.srt = 90+
-    scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
-  scale_y_discrete(labels = custom_labels)
-)
-
-heatmap<-ggcorrplot(correlation_coefficients, method= "circle", type =NULL,  tl.srt = 90,  p.mat = p.mat, insig = "blank")+
+  insig = "blank"
+) +
   scale_x_discrete(labels = custom_labels) +  # Apply custom labels to x-axis
-  scale_y_discrete(labels = custom_labels)#https://www.youtube.com/watch?v=E3De2A73ako&t=1s
+  scale_y_discrete(labels = custom_labels)    # Apply custom labels to y-axis
+
+# Print the heatmap
+print(heatmap)
+
 ```
 
 ```{r}
@@ -735,10 +740,15 @@ violin_plots
 ```
 
 # Note
+
 In this section, all data are automatically generated from the R code. You can access the full code [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
+
 # Study 1
 
 ## Participants
+
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation.
+Ultimately, the sample consisted of *N* = 23 recreational athletes (mean age = 36.13 years, SD = 14.17), including 14 females, 7 males, and 2 identifying as diverse. Participants followed individual workout routines averaging 7.69 hours per week (SD = 4.29) with a self-rated intensity (perceived exertion) of 5.17 (SD = 1.47). The sports they engaged in included running (n = 10), triathlon (n = 6), weight training (n = 4), and other endurance sports (n = 3).
 
 ## Measures
 
@@ -751,8 +761,8 @@ In this section, all data are automatically generated from the R code. You can a
 
 
 ## Analysis
-First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base` ), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`)  were not normally distributed. We then calculated the speed from the time and distance values for each session, and found that there was a great variety. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3) `
-Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated using z-values. For the analysis, the programming language R [@rlanguage2024] was used. 
+First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`)  were not normally distributed. We then calculated the speed from the time and distance values for each session, and found that there was a great variety. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3) `)
+Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used. 
 
 ## Results
 
@@ -1506,10 +1516,6 @@ pride_dynamics_plot<- plot_model(
 globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globality_centered"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
 
 ```
-
-
-
-
 
 
 ## Analysis
