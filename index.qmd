@@ -33,9 +33,9 @@ bibliography: bibliography.bib
 format:
   apaquarto-html: default
   apaquarto-docx: default
- # apaquarto-pdf:
-   # documentmode: man
-    
+  #apaquarto-pdf:
+    #documentmode: man
+floatsintext: false
 comments:
   hypothesis: true
 ---
@@ -47,7 +47,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr, car)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr, car, readxl)
 
 
 ```
@@ -227,7 +227,6 @@ mean_by_pattern<-function(df,searchstring){
 
 ####Descriptives-Funktion: Berechnet Typische deskriptive Werte für alle Variablen eines gegebenen Datensatzes: ######
 #Calculate mean, sd, range, min, max of all variables. 
-library(dplyr)
 
 mean_sd_median_min_max <- function(df) {
   result <- df %>%
@@ -248,16 +247,34 @@ mean_sd_median_min_max <- function(df) {
 }
 
 #### Return all variables that are not normally distribute in the dataset####
-which_var_not_normal<- function(df) {
-  names<-df %>% select(where(is.numeric)) %>% select(where(~ !is.na(var(.)) && var(.) > 0)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
-  return(names)
+
+
+
+which_var_not_normal_p <- function(df) {
+  # Step 1: Select numeric vars with non-zero variance
+  numeric_vars <- df %>%
+    select(where(is.numeric)) 
+  # Step 2: Get Shapiro-Wilk p-values for all
+  desc_stats <- stat.desc(numeric_vars, basic = FALSE, norm = TRUE)
+  
+  # Step 3: Check if p-values row exists
+  if (!"normtest.p" %in% rownames(desc_stats)) return(data.frame())
+
+  norm_pvals <- desc_stats["normtest.p", ]
+  
+  # Step 4: Identify variables with p < .05
+  non_normal_vars <- names(norm_pvals)[norm_pvals < 0.05]
+  
+  # Step 5: Recompute and return p-values of non-normal variables only
+  if (length(non_normal_vars) == 0) return(data.frame())  # nothing non-normal
+  
+  pvals_df <- stat.desc(numeric_vars[non_normal_vars], basic = FALSE, norm = TRUE) %>%
+    as.data.frame() %>%
+    .["normtest.p", , drop = FALSE]
+
+  return(pvals_df)
 }
 
-which_var_not_normal_p<- function(df) {
-  names<-df %>% select(where(is.numeric)) %>% select(where(~ !is.na(var(.)) && var(.) > 0)) %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",] %>%   .[, . < 0.05 ] %>% names()
-  not_normal_data<-df[,names]  %>% stat.desc (basic=F, norm=T) %>% as.data.frame() %>%.["normtest.p",]
-  return(not_normal_data)
-}
 
 ##### Show Histograms of all variables #####
 print_all_histograms <- function(df, bins_n=20) {
@@ -420,72 +437,116 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 ```
 
 ```{r data import and transformation}
-load("PRIMOCA_data_forR_20240203.Rdata")
-df<-PRIMOCA_data_forR_20240203
 
-#### Deal with hyphens in weekly_KM_base ####
-df <- handle_hyphen(df, "WeeklyKM_base")# See the script "Functions.R" to examine the function
-df <- df %>%
+### Study 1 ###
+
+df_study1 <- readxl::read_excel("df_study1.xlsx")
+
+df_study1 <- handle_hyphen(df_study1, "WeeklyKM_base") # See the script "Functions.R" to examine the function
+df_study1 <- df_study1 %>%
   mutate(
     WeeklyH_base = gsub(",", ".", WeeklyH_base)
   )
-df <- handle_hyphen(df, "WeeklyH_base") # also a function from the function script, it averages two numbers out if the person wrote something like 40-45
-
-####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
-
-df$SportCode<-df$SportCode %>% dplyr::recode(`3` = 1, `4` = 1)
+df_study1 <- handle_hyphen(df_study1, "WeeklyH_base")
 
 #### Making everything numeric####
-df[] <- sapply(df, as.numeric)
+df_study1[df_study1==-99]<-NA
+sum(is.na(df_study1))
+df_study1 <- df_study1 %>%
+  mutate(across(
+    .cols = -c(Programme, Age, Aim, Notes, Gender, Sport),
+    .fns = ~ as.numeric(.)
+  ))
+sum(is.na(df_study1))
 
-sum(is.na(df))
-df[df==-99]<-NA
 
-original_data_amount <-  df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave"))%>%  # Select (where colums are numeric)
+original_data_amount <-  df_study1 %>% select(-"Programme" ,-"Age" , -"Aim", -"Notes"   ,-   "Gender" ,  -"Sport", -ends_with("_ave"))%>%  # Select (where colums are numeric)
   summarise(across(everything(), ~ sum(!is.na(.)))) %>% sum() # Apply summary functions to columns to create a new table of summary statistics. Summary functions take vectors as input and return one value, ~sum of values that are not NA. !! The "." is a placeholder for all the things that are passed throught the function !is.na()
-original_data_missings_amount <- df %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
+original_data_missings_amount <- df_study1 %>% select(-"Programme" ,-"Age"    ,-   "Gender" ,  -"Sport", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
 missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
-
-#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
-descriptives_list <- mean_sd_median_min_max(df)
-vars_not_normal<-which_var_not_normal(df)
-vars_not_normal_with_p_values<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
 
 
 ####rename the gender ####
-df <- df %>%
+df_study1 <- df_study1 %>%
+  mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
+
+
+### Study 2 ###
+df_study2 <- read_excel("df_study2.xlsx")
+
+#### Deal with hyphens in weekly_KM_base ####
+df_study2 <- handle_hyphen(df_study2, "WeeklyKM_base")# See the script "Functions.R" to examine the function
+df_study2 <- df_study2 %>%
+  mutate(
+    WeeklyH_base = gsub(",", ".", WeeklyH_base)
+  )
+df_study2 <- handle_hyphen(df_study2, "WeeklyH_base") 
+
+####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
+
+df_study2$SportCode<-df_study2$SportCode %>% dplyr::recode(`3` = 1, `4` = 1)
+
+#### Making everything numeric####
+df_study2[] <- sapply(df_study2, as.numeric)
+
+sum(is.na(df_study2))
+df_study2[df_study2==-99]<-NA
+sum(is.na(df_study2))
+
+original_data_amount <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave"))%>%  # Select (where colums are numeric)
+  summarise(across(everything(), ~ sum(!is.na(.)))) %>% sum() # Apply summary functions to columns to create a new table of summary statistics. Summary functions take vectors as input and return one value, ~sum of values that are not NA. !! The "." is a placeholder for all the things that are passed throught the function !is.na()
+original_data_missings_amount <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
+missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
+
+
+####rename the gender ####
+df_study2 <- df_study2 %>%
   mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
 ### Speed
-df$Speed_1<-(df[,"SessionKM_1"]/df[,"SessionH_1"])*60
-df$Speed_2<-(df[,"SessionKM_2"]/df[,"SessionH_2"])*60
-df$Speed_3<-(df[,"SessionKM_3"]/df[,"SessionH_3"])*60
-df$Speed_4<-(df[,"SessionKM_4"]/df[,"SessionH_4"])*60
-df$Speed_5<-(df[,"SessionKM_5"]/df[,"SessionH_5"])*60
-df$Speed_6<-(df[,"SessionKM_6"]/df[,"SessionH_6"])*60
 
-df$Speed_1_class <- ifelse(df$Speed_1 < 5, "Swimming",
-                     ifelse(df$Speed_1 <= 20, "Running", "Cycling"))
+##KM or H that are 0 should not be possible, so they are set to "NA"
+df_study2[, c("SessionKM_1", "SessionKM_2", "SessionKM_3", "SessionKM_4", "SessionKM_5", "SessionKM_6" )]
+df_study2[, c("SessionH_1", "SessionH_2", "SessionH_3", "SessionH_4", "SessionH_5", "SessionH_6" )]
+df_study2 <- df_study2 %>% rename(SessionKMaverage = SessionKM_ave)
+df_study2 <- df_study2 %>% rename(SessionHaverage = SessionH_ave)
+df_study2 <- df_study2 %>%
+  mutate(across(starts_with("SessionKM_"), ~ ifelse(. == 0, NA, .))) %>%
+  mutate(across(starts_with("SessionH_"), ~ ifelse(. == 0, NA, .)))
 
-df$Speed_2_class <- ifelse(df$Speed_2 < 5, "Swimming",
-                     ifelse(df$Speed_2 <= 20, "Running", "Cycling"))
 
-df$Speed_3_class <- ifelse(df$Speed_3 < 5, "Swimming",
-                     ifelse(df$Speed_3 <= 20, "Running", "Cycling"))
+df_study2$Speed_1<-(df_study2$SessionKM_1/df_study2$SessionH_1)*60 %>% as.numeric()
+df_study2$Speed_2<-(df_study2$SessionKM_2/df_study2$SessionH_2)*60 %>% as.numeric()
+df_study2$Speed_3<-(df_study2$SessionKM_3/df_study2$SessionH_3)*60 %>% as.numeric()
+df_study2$Speed_4<-(df_study2$SessionKM_4/df_study2$SessionH_4)*60 %>% as.numeric()
+df_study2$Speed_5<-(df_study2$SessionKM_5/df_study2$SessionH_5)*60 %>% as.numeric()
+df_study2$Speed_6<-(df_study2$SessionKM_6/df_study2$SessionH_6)*60 %>% as.numeric()
 
-df$Speed_4_class <- ifelse(df$Speed_4 < 5, "Swimming",
-                     ifelse(df$Speed_4 <= 20, "Running", "Cycling"))
+df_study2$Speed_1_class <- ifelse(df_study2$Speed_1 < 5, "Swimming",
+                     ifelse(df_study2$Speed_1 <= 20, "Running", "Cycling"))
 
-df$Speed_5_class <- ifelse(df$Speed_5 < 5, "Swimming",
-                     ifelse(df$Speed_5 <= 20, "Running", "Cycling"))
+df_study2$Speed_2_class <- ifelse(df_study2$Speed_2 < 5, "Swimming",
+                     ifelse(df_study2$Speed_2 <= 20, "Running", "Cycling"))
 
-df$Speed_6_class <- ifelse(df$Speed_6 < 5, "Swimming",
-                     ifelse(df$Speed_6 <= 20, "Running", "Cycling"))
+df_study2$Speed_3_class <- ifelse(df_study2$Speed_3 < 5, "Swimming",
+                     ifelse(df_study2$Speed_3 <= 20, "Running", "Cycling"))
+
+df_study2$Speed_4_class <- ifelse(df_study2$Speed_4 < 5, "Swimming",
+                     ifelse(df_study2$Speed_4 <= 20, "Running", "Cycling"))
+
+df_study2$Speed_5_class <- ifelse(df_study2$Speed_5 < 5, "Swimming",
+                     ifelse(df_study2$Speed_5 <= 20, "Running", "Cycling"))
+
+df_study2$Speed_6_class <- ifelse(df_study2$Speed_6 < 5, "Swimming",
+                     ifelse(df_study2$Speed_6 <= 20, "Running", "Cycling"))
+
+
+
 
 #### sport specific z-scaling ####
 
 ##For baseline (According to sport Code)
-df <- df %>%
+df_study2 <- df_study2 %>%
   group_by(SportCode) %>%
   mutate(WeeklyKM_base = as.numeric(scale(WeeklyKM_base))) %>%
   ungroup()
@@ -497,7 +558,7 @@ for (i in 1:6) {
   speed_var <- paste0("Speed_", i)
   class_var <- paste0("Speed_", i, "_class")
 
-  df <- df %>%
+  df_study2 <- df_study2 %>%
     group_by(.data[[class_var]]) %>%
     mutate(!!speed_var := as.numeric(scale(.data[[speed_var]]))) %>%
     ungroup()
@@ -508,16 +569,16 @@ for (i in 1:6) {
   km_var <- paste0("SessionKM_", i)
   class_var <- paste0("Speed_", i, "_class")
  
-  df <- df %>%
+  df_study2 <- df_study2 %>%
     group_by(.data[[class_var]]) %>%
     mutate(!!km_var := as.numeric(scale(.data[[km_var]]))) %>%
     ungroup()
 }
 
 #####Convert Data to long format#####
-repeated_measures1<-df %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
+repeated_measures1<-df_study2 %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
-long_df <- df %>%
+long_df <- df_study2 %>%
   pivot_longer(
     cols = all_of(repeated_measures1), # 
     names_to = c(".value", "Time"),   # Split into a base name and the timepoint
@@ -541,7 +602,7 @@ long_df <- df %>%
 
 #### Centering #####
 # Grand mean centering
-long_df[, c("Pride_centered", "Dynamics_centered", "PA_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "PA", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
+long_df[, c("Pride_centered", "Dynamics_centered", "Locus_centered", "Globality_centered", "Affiliation_centered", "Achievement_centered", "Power_centered")] <- scale(long_df[, c("Pride", "Dynamics", "Locus", "Globality", "Affiliation", "Achievement", "Power")], center = TRUE, scale = FALSE)
 
 # Group mean centering
 long_df <- long_df %>%
@@ -555,7 +616,7 @@ long_df <- long_df %>%
 long_df$SessionH_lead1_log <- log(long_df$SessionH_lead1)
 long_df$SessionH_lead1_log[is.infinite(long_df$SessionH_lead1_log)] <- 0.000001
 
-
+long_df$SessionH_lead1_sqrt<-sqrt(long_df$SessionH_lead1)
 long_df$ID<-long_df$ID %>% as.factor()
 
 
@@ -565,8 +626,10 @@ long_df$ID<-long_df$ID %>% as.factor()
 ```{r values}
 #| include: false
 
-vars_not_normal_with_p_values_z<-which_var_not_normal_p(df) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
-SessionKM_shapirotest_after_z<-shapiro.test(df$WeeklyKM_base)
+#### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
+descriptives_list <- mean_sd_median_min_max(df_study1)
+vars_not_normal<-which_var_not_normal_p(df_study1)
+vars_not_normal_with_p_values<-which_var_not_normal_p(df_study1) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
 
 #### Power analysis ####
 pwr_result <- pwr.r.test(n = NULL,         
@@ -575,21 +638,23 @@ pwr_result <- pwr.r.test(n = NULL,
                      power = 0.95,      
                      alternative = "greater") 
 
-#
+
+SessionKM_shapirotest_after_z<-shapiro.test(df_study2$WeeklyKM_base)
 
 ```
 
-```{r tables}
+```{r tables study 1}
 #| include: false
 
+## Study 1
 
 #### correlation table ####
 pride_variables<-c("Pride_base", "Hubris_base")
-base_training_and_affect_variables<-df %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
-motive_variables <- c("Achievement", "Affiliation", "Power", df %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
+base_training_and_affect_variables<-df_study1 %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
+motive_variables <- c("Achievement", "Affiliation", "Power", df_study1 %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
 attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
-corr_table<-df[,correlation_variables] %>% 
+corr_table<-df_study1[,correlation_variables] %>% 
   generate_correlation_table2(method= "spearman",c(
     "1. Pride", 
     "2. Hubris", 
@@ -614,7 +679,7 @@ corr_table<-df[,correlation_variables] %>%
 
 #### Skewness, Kurtosis and min-max range table###############################################
 
-df_stat<-get_descriptive_table(df[, correlation_variables], language = "German")
+df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "German")
 
 df_stat$Variable <- c(
   "1. Pride", 
@@ -672,7 +737,7 @@ custom_labels <- c(
 #print_all_histograms(df, bins_n = 30)
 #print_all_histograms(df[correlation_variables])
 
- violin_plots<-print_all_violin_boxplots(df[correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
+ violin_plots<-print_all_violin_boxplots(df_study1[,correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
 
 
 # long_df_filtered <- na.omit(long_df[, c(
@@ -697,10 +762,10 @@ custom_labels <- c(
 #   )
 
 # Compute Spearman correlation coefficients
-correlation_coefficients <- cor(df[, correlation_variables], use = "pairwise.complete.obs", method = "spearman")
+correlation_coefficients <- cor(df_study1[, correlation_variables], use = "pairwise.complete.obs", method = "spearman")
 
 # Compute p-values for the Spearman correlations
-p.mat <- cor_pmat(df[, correlation_variables], method = "spearman")
+p.mat <- cor_pmat(df_study1[, correlation_variables], method = "spearman")
 
 # Generate the heatmap
 heatmap <- ggcorrplot(
@@ -721,13 +786,13 @@ print(heatmap)
 
 # Note
 
-In this section, all data are automatically generated from the R code. You can access the full code [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
+In this document, the results are generated from R code directly. You can access the full code [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
 
 # Study 1
 
 ## Participants
 
-Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G*Power29 for testing one-sided point biserial correlation with \|ρ\| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. Ultimately, the sample consisted of* N\* = 23 recreational athletes (mean age = 36.13 years, SD = 14.17), including 14 females, 7 males, and 2 identifying as diverse. Participants followed individual workout routines averaging 7.69 hours per week (SD = 4.29) with a self-rated intensity (perceived exertion) of 5.17 (SD = 1.47). The sports they engaged in included running (n = 10), triathlon (n = 6), weight training (n = 4), and other endurance sports (n = 3).
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. Ultimately, the sample consisted of *N* = 23 recreational athletes (mean age = 36.13 years, SD = 14.17), including 14 females, 7 males, and 2 identifying as diverse. Participants followed individual workout routines averaging 7.69 hours per week (SD = 4.29) with a self-rated intensity (perceived exertion) of 5.17 (SD = 1.47). The sports they engaged in included running (n = 10), triathlon (n = 6), weight training (n = 4), and other endurance sports (n = 3).
 
 ## Measures
 
@@ -739,11 +804,11 @@ Participants were adults with specific goals (e.g., running a marathon, competin
 
 ## Analysis
 
-First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. We then calculated the speed from the time and distance values for each session, and found that there was a great variety. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3)`) Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used.
+First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. We then calculated the speed from the time and distance values for each session, and found a great variability. The speed in a session ranged from `r min(c(descriptives_list$Speed_1_min, descriptives_list$Speed_2_min, descriptives_list$Speed_3_min, descriptives_list$Speed_4_min, descriptives_list$Speed_5_min, descriptives_list$Speed_6_min), na.rm = TRUE) %>% round(0)` to `r max(c(descriptives_list$Speed_1_max, descriptives_list$Speed_2_max, descriptives_list$Speed_3_max, descriptives_list$Speed_4_max, descriptives_list$Speed_5_max, descriptives_list$Speed_6_max), na.rm = TRUE) %>% round(0)` kilometers per hour. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3)`) Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used.
 
 ## Results
 
-::: landscape
+
 ```{r}
 #| label: tbl-corrtable
 #| tbl-cap: The Table Caption
@@ -751,7 +816,6 @@ First, implicit motives for achievement, affiliation, and power motives were z-s
 corr_table
 
 ```
-:::
 
 Correlations are shown in @fig-corrplot.
 
@@ -1056,7 +1120,7 @@ model_SessionH_3 <- lme(
 )
 
 model_SessionH_4 <- lme(
-  fixed = SessionH_lead1 ~ 
+  fixed = SessionH_lead1_log ~ 
    Pride_cm_centered* PA_cm_centered + 
    Pride_cm_centered* Dynamics_centered +
    Pride_cm_centered* Locus_centered + 
@@ -1522,7 +1586,7 @@ globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globalit
 
 ## Analysis
 
-We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. A reproducible version of the results section of this article is available at <https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise>.
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. A reproducible manuscript version of the results section of this article is available at [https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise](#0){.uri}.
 
 The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
 
