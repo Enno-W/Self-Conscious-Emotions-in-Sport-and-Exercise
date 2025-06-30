@@ -252,8 +252,12 @@ mean_sd_median_min_max <- function(df) {
 
 which_var_not_normal_p <- function(df) {
   # Step 1: Select numeric vars with non-zero variance
-  numeric_vars <- df %>%
-    select(where(is.numeric)) 
+  numeric_vars <- df %>% 
+    select(where(is.numeric)) %>%
+    select(where(~ var(.x, na.rm = TRUE) > 0))  # NEU: nur mit Varianz > 0
+  
+  if (ncol(numeric_vars) == 0) return(data.frame())  # keine geeigneten Variablen
+
   # Step 2: Get Shapiro-Wilk p-values for all
   desc_stats <- stat.desc(numeric_vars, basic = FALSE, norm = TRUE)
   
@@ -274,6 +278,7 @@ which_var_not_normal_p <- function(df) {
 
   return(pvals_df)
 }
+
 
 
 ##### Show Histograms of all variables #####
@@ -333,7 +338,7 @@ print_all_violin_boxplots <- function(df, group_col = NULL, dodge_width = 1, fac
     geom_violin(aes(fill = Group), linewidth = 1, color = "black", 
                 show.legend = FALSE, position = position_dodge(width = dodge_width)) +
     # Boxplot
-    geom_boxplot(aes(fill = Group), outlier.size = 2, outlier.shape = 18, outlier.colour = "blue", 
+    geom_boxplot(aes(fill = Group), outlier.size = 3, outlier.shape = 18, outlier.colour = "grey", 
                  width = 0.1, position = position_dodge(width = dodge_width), show.legend = FALSE) +
     # Raw data points with horizontal jitter
     geom_point(position = position_jitter(width = point_jitter, height = 0), 
@@ -437,11 +442,22 @@ xlsx_to_bib("https://bit.ly/scemotions-references")
 ```
 
 ```{r data import and transformation}
-
+#| include: false
 ### Study 1 ###
 
 df_study1 <- readxl::read_excel("df_study1.xlsx")
+# Remove repeatedly measured variables with suffixes _1 to _6
+df_study1 <- df_study1 %>%
+  select(-matches("_(1|2|3|4|5|6)$"))
 
+# exclude if the row is empty
+df_study1 <- df_study1 %>%
+  filter(!if_all(everything(), is.na))
+
+# cöount original participants
+original_n<-nrow (df_study1)
+
+# deal with hyphens in the km and h data
 df_study1 <- handle_hyphen(df_study1, "WeeklyKM_base") # See the script "Functions.R" to examine the function
 df_study1 <- df_study1 %>%
   mutate(
@@ -460,18 +476,56 @@ df_study1 <- df_study1 %>%
 sum(is.na(df_study1))
 
 
-original_data_amount <-  df_study1 %>% select(-"Programme" ,-"Age" , -"Aim", -"Notes"   ,-   "Gender" ,  -"Sport", -ends_with("_ave"))%>%  # Select (where colums are numeric)
+
+### Remove participants who were not following a structured exercise program
+
+df_study1<-df_study1 %>% filter(Programme == 1|is.na(Programme))
+filtered_n <-nrow(df_study1)
+
+
+# ### Remove Participants with too many NAs
+# df_study1$missings_amount <- rowSums(is.na(df_study1))
+# df_study1 %>% filter(missings_amount <42  )
+
+# Creating a vector with the names of all character-variables
+character_vars <- df_study1 %>%
+  select(where(is.character)) %>%
+  names()
+
+### Counting how many data points are present in the numeric data
+data_amount <-  df_study1 %>% select(-"Programme" ,-"Age" , -"Aim", -"Notes"   ,-   "Gender" ,  -"Sport", -ends_with("_ave"))%>%  # Select (where colums are numeric)
   summarise(across(everything(), ~ sum(!is.na(.)))) %>% sum() # Apply summary functions to columns to create a new table of summary statistics. Summary functions take vectors as input and return one value, ~sum of values that are not NA. !! The "." is a placeholder for all the things that are passed throught the function !is.na()
-original_data_missings_amount <- df_study1 %>% select(-"Programme" ,-"Age"    ,-   "Gender" ,  -"Sport", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
-missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
+
+# Counting the amount of missing data
+missings_amount <- df_study1 %>% select(-"Programme" ,-"Age"    ,-   "Gender" ,  -"Sport", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
+
+
+#Calculating the percentage of missing data
+missings_percentage <-round((missings_amount / data_amount) * 100, 0)
 
 
 ####rename the gender ####
 df_study1 <- df_study1 %>%
   mutate(Gender = dplyr::recode(Gender, "1" = "male", "2" = "female", "3" = "diverse"))
 
+#### Counting by gender
+n_male<-nrow(df_study1 %>% filter(Gender == "male"))
+n_female<-nrow(df_study1 %>% filter(Gender == "female"))
+n_diverse<-nrow(df_study1 %>% filter(Gender == "diverse"))
+
+
+patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
+df_study1 <- replace_patterns(df_study1, "Sport", patterns)# See the script "Functions.R" to examine the function
+
+# count how many participants were in the sport categories
+n_running<-df_study1 %>% filter( Sport == "Laufen") %>% nrow()
+n_weight<-df_study1 %>% filter( Sport == "Kraftsport") %>% nrow()
+n_triathlon <-df_study1 %>% filter( Sport == "Triathlon") %>% nrow()
+n_other_sports <- nrow(df_study1)-(n_running+n_weight+n_triathlon)
 
 ### Study 2 ###
+
+## This dataset contains identical entries from df_study1, but data was manually chceked for plausibility and completion, only data suitable for longitudinal analysis was retained. 
 df_study2 <- read_excel("df_study2.xlsx")
 
 #### Deal with hyphens in weekly_KM_base ####
@@ -481,10 +535,6 @@ df_study2 <- df_study2 %>%
     WeeklyH_base = gsub(",", ".", WeeklyH_base)
   )
 df_study2 <- handle_hyphen(df_study2, "WeeklyH_base") 
-
-####Dealing with weightlifter or other sport programs #### Hier klären wie genau verfahren werden soll!!
-
-df_study2$SportCode<-df_study2$SportCode %>% dplyr::recode(`3` = 1, `4` = 1)
 
 #### Making everything numeric####
 df_study2[] <- sapply(df_study2, as.numeric)
@@ -628,7 +678,7 @@ long_df$ID<-long_df$ID %>% as.factor()
 
 #### Creating a list with all commonly used descriptive statistics + other descriptive values ###############################################
 descriptives_list <- mean_sd_median_min_max(df_study1)
-vars_not_normal<-which_var_not_normal_p(df_study1)
+vars_not_normal<-which_var_not_normal_p(df_study2)
 vars_not_normal_with_p_values<-which_var_not_normal_p(df_study1) %>% mutate(across(where(is.numeric), ~ ifelse(. < 0.001, "< .001", paste("= ", round(., 3)))))
 
 #### Power analysis ####
@@ -679,7 +729,7 @@ corr_table<-df_study1[,correlation_variables] %>%
 
 #### Skewness, Kurtosis and min-max range table###############################################
 
-df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "German")
+df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "English")
 
 df_stat$Variable <- c(
   "1. Pride", 
@@ -708,7 +758,7 @@ table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
 
 ```
 
-```{r graphs}
+```{r graphs study 1}
 #| include: false
 
 
@@ -788,11 +838,29 @@ print(heatmap)
 
 In this document, the results are generated from R code directly. You can access the full code [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
 
+# Hypotheses
+
+Hypothesis 1: The implicit achievement motive correlates positively with authentic pride.
+In contrast, hubristic pride is associated with social dominance, reflecting the power motive, which leads to our second hypothesis:
+Hypothesis 2: The implicit power motive correlates positively with hubristic pride.
+As authentic pride relates to pro-social behavior and hubristic pride is associated with more anti-social behavior, our third hypothesis is:
+Hypothesis 3 is: The implicit affiliation motive correlates positively with authentic pride and negatively with hubristic pride.
+Additionally, in our fourth hypothesis, we assume that implicit motive component cues highlight situations as favorable for either authentic or hubristic pride:
+Hypothesis 4: Hope for success, hope for control, and hope for social belonging correlate positively with authentic pride; fear of failure, fear of loss of control, and fear of social rejection correlate positively with hubristic pride.
+Second, we hypothesize that causal attribution styles, as explicit regulation processes, correlate with either authentic or hubristic pride. This leads to the following hypotheses:
+Hypothesis 5: Individuals who tend to attribute their achievements, power, or social gains internally, variably, controllably, and specifically will report higher levels of authentic pride.
+Hypothesis 6: Individuals who tend to attribute their achievements, power, or social gains internally, stably, uncontrollably, and globally will report higher levels of hubristic pride.
+Third, based on existing literature, we hypothesize that authentic and hubristic pride are associated with physical activity parameters. This leads to the following hypotheses:
+Hypothesis 7: Authentic pride and its associated regulation processes correlate with higher physical activity parameters.
+Hypothesis 8: Hubristic pride and its associated regulation processes correlate with lower physical activity parameters.
+
+
 # Study 1
 
 ## Participants
 
-Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. Ultimately, the sample consisted of *N* = 23 recreational athletes (mean age = 36.13 years, SD = 14.17), including 14 females, 7 males, and 2 identifying as diverse. Participants followed individual workout routines averaging 7.69 hours per week (SD = 4.29) with a self-rated intensity (perceived exertion) of 5.17 (SD = 1.47). The sports they engaged in included running (n = 10), triathlon (n = 6), weight training (n = 4), and other endurance sports (n = 3).
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. After excluding participants that did not follow a training routine (*N* = `r original_n - filtered_n`), the sample consisted of *N* = `r filtered_n` recreational athletes (mean age = `r descriptives_list$Age_mean %>% round(2)` --36.13 years, SD =  `r descriptives_list$Age_sd %>% round(0)` --14.17), including `r n_female` females, `r n_male` males, and `r n_diverse` identifying as diverse. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` --7.69 hours per week (SD = `r descriptives_list$WeeklyH_base_sd %>% round(2)` --4.29) with a self-rated intensity (perceived exertion) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)`--5.17 (SD = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`--1.47). The sports they engaged in included running (n = `r n_running`), triathlon (n = `r n_triathlon`), weight training (n = `r n_weight`), and other endurance sports (n = `r n_other_sports`). `r missings_percentage` % of data were missing. 
+
 
 ## Measures
 
@@ -808,21 +876,27 @@ First, implicit motives for achievement, affiliation, and power motives were z-s
 
 ## Results
 
+```{r}
+#| label: tbl-stat
+#| tbl-cap: Descriptive statistics table
+#| apa-note: The p-value results from Shapiro-Wilk-tests of normality. 
+table_stat
+```
 
 ```{r}
 #| label: tbl-corrtable
-#| tbl-cap: The Table Caption
-#| apa-note: The note below the table.
+#| tbl-cap: Correlation matrix of Spearman Rho (Ρ) coefficients 
+#| apa-note: "* p < .05, ** p < .01, *** p < .001."
 corr_table
-
 ```
+@tbl-stat  presents descriptive statistics, including mean, standard deviation, skewness, and kurtosis. The sample represents medium authentic pride and medium positive affect, low hubristic pride and low negative affect. Additionally, the sample shows a slightly stronger implicit affiliation motive but regular motive components in all 3 implicit motives. Further, the sample applies more internal, variable, and less uncontrollable attribution styles.  @fig-violin visualises the distibution of these variables. 
 
-Correlations are shown in @fig-corrplot.
+Correlations are presented in @tbl-corrtable and shown in @fig-corrplot.
 
 ```{r}
 #| label: fig-corrplot
-#| fig-cap: Heatmap
-#| apa-note: This is the note below the figure.
+#| fig-cap: Correlation Plot showing Spearman Rho coefficients between investigated variables.
+#| apa-note:  Bullets depict significant correlations (p < .05) and show positive (darker blue tones) or negative (darker red tones) correlations. Spearman's rank correlation coefficient was used. 
 #| fig-height: 10
 #| fig-width: 10
 heatmap
@@ -831,7 +905,7 @@ heatmap
 ```{r}
 #| label: fig-violin
 #| fig-cap: Violin Plot with boxplots
-#| apa-note: This is the note below the figure.
+#| apa-note: The "X" represents the mean. Outliers are shown as grey diamonds. 
 #| fig-height: 15
 #| fig-width: 10
 violin_plots
@@ -1586,9 +1660,9 @@ globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globalit
 
 ## Analysis
 
-We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. A reproducible manuscript version of the results section of this article is available at [https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise](#0){.uri}.
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. 
 
-The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to training sessions that were not completed, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
+The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
 
 We used the nlme-package [@nlme] for the hierarchical linear models. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
 
