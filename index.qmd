@@ -872,7 +872,7 @@ Participants were adults with specific goals (e.g., running a marathon, competin
 
 ## Analysis
 
-First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. We then calculated the speed from the time and distance values for each session, and found a great variability. The speed in a session ranged from `r min(c(descriptives_list$Speed_1_min, descriptives_list$Speed_2_min, descriptives_list$Speed_3_min, descriptives_list$Speed_4_min, descriptives_list$Speed_5_min, descriptives_list$Speed_6_min), na.rm = TRUE) %>% round(0)` to `r max(c(descriptives_list$Speed_1_max, descriptives_list$Speed_2_max, descriptives_list$Speed_3_max, descriptives_list$Speed_4_max, descriptives_list$Speed_5_max, descriptives_list$Speed_6_max), na.rm = TRUE) %>% round(0)` kilometers per hour. As a consequence, we grouped the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these respective groups. After this, the running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3)`) Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used.
+First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. We then calculated the speed from the time and distance values for each session, and found a great variability. The speed in a session ranged from `r min(c(descriptives_list$Speed_1_min, descriptives_list$Speed_2_min, descriptives_list$Speed_3_min, descriptives_list$Speed_4_min, descriptives_list$Speed_5_min, descriptives_list$Speed_6_min), na.rm = TRUE) %>% round(0)` to `r max(c(descriptives_list$Speed_1_max, descriptives_list$Speed_2_max, descriptives_list$Speed_3_max, descriptives_list$Speed_4_max, descriptives_list$Speed_5_max, descriptives_list$Speed_6_max), na.rm = TRUE) %>% round(0)` kilometers per hour. As a consequence, we separated the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these groups. After this, running distance was normally distributed (*p* = `r round(SessionKM_shapirotest_after_z$p.value,3)`) Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used.
 
 ## Results
 
@@ -923,7 +923,8 @@ null_model_km<- lme(SessionKM_lead1 ~ 1,
                       data=long_df, 
                       random= ~1|ID, 
                       method="ML", 
-                      na.action = na.omit) # See the documentation for lme: ?lme --> other options: na.exclude, na.pass...#
+                      na.action = na.omit) # NAs are ignored
+
 summary(null_model_km)
 # The "1" stands for the "intercept"
 #The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
@@ -934,58 +935,30 @@ icc_km<-performance::icc(null_model_km)
 
 
 model_SessionKM_1 <- lme(
-  fixed =   SessionKM_lead1 ~   
-   Pride_cm_centered* PA_cm_centered,
+  fixed = SessionKM_lead1 ~ Pride_cm_centered * PA_cm_centered,
   random = ~ 1 | ID,
-  data = long_df, 
-  na.action=na.omit, 
-  
+  data = long_df,
+  na.action = na.omit,
   method = "REML"
 )
 
-model_SessionKM_2 <- lme(
-  fixed = SessionKM_lead1 ~ 
-   Pride_cm_centered* PA_cm_centered+
-   Pride_cm_centered* Dynamics_centered + 
-   Pride_cm_centered* Locus_centered + 
-   Pride_cm_centered* Globality_centered ,
-  random = ~ 1 | ID,
-  data = long_df, 
-  na.action=na.omit, 
 
-  method = "REML"
+model_SessionKM_2 <- update(model_SessionKM_1,
+  fixed = . ~ . +
+    Pride_cm_centered * Dynamics_centered +
+    Pride_cm_centered * Locus_centered +
+    Pride_cm_centered * Globality_centered
 )
 
-model_SessionKM_3 <- lme(
-  fixed = SessionKM_lead1 ~ 
-    Pride_cm_centered * PA_cm_centered+ 
-    Pride_cm_centered * Dynamics_centered + 
-    Pride_cm_centered * Locus_centered + 
-    Pride_cm_centered * Globality_centered + 
-    Pride_cm_centered * Affiliation_centered + 
-    Pride_cm_centered * Achievement_centered + 
-    Pride_cm_centered * Power_centered,
-  random = ~ 1 | ID,
-
-  data = long_df, 
-  na.action=na.omit, 
-  method = "REML"
+model_SessionKM_3 <- update(model_SessionKM_2,
+  fixed = . ~ . +
+    Pride_cm_centered * Affiliation_centered +
+    Pride_cm_centered * Achievement_centered +
+    Pride_cm_centered * Power_centered
 )
 
-model_SessionKM_4 <- lme(
-  fixed = SessionKM_lead1 ~ 
-   Pride_cm_centered* PA_cm_centered+ 
-   Pride_cm_centered* Dynamics_centered +
-   Pride_cm_centered* Locus_centered + 
-   Pride_cm_centered* Globality_centered + 
-   Pride_cm_centered* Affiliation_centered + 
-   Pride_cm_centered* Achievement_centered + 
-   Pride_cm_centered* Power_centered,
-  random = ~ 1 | ID,
-  data = long_df, 
-  na.action=na.omit,
-    method = "REML"
-)
+
+Rsquared_km<-r.squaredGLMM(model_SessionKM_3)
 
 ### Table Output #####
 # Distance
@@ -1135,6 +1108,55 @@ outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, y = ID)) +
   )
 
 
+# Linearity
+# Select relevant predictors (adjust this list as needed)
+facet_df <- long_df %>%
+  select(
+    SessionKM_lead1,
+    Pride_cm_centered,
+    PA_cm_centered,
+    Dynamics_centered,
+    Locus_centered,
+    Globality_centered,
+    Affiliation_centered,
+    Achievement_centered,
+    Power_centered
+  ) %>%
+  pivot_longer(
+    cols = -SessionKM_lead1,
+    names_to = "Prädiktor",
+    values_to = "Wert"
+  )
+
+linearity_plot <- ggplot(facet_df, aes(x = Wert, y = SessionKM_lead1)) +
+  geom_point(alpha = 0.4, color = "grey40") +
+  geom_smooth(method = "loess", se = FALSE, color = "firebrick", linewidth = 1) +
+  facet_wrap(~ Prädiktor, scales = "free_x") +
+  labs(
+    x = "Predictors (centered)",
+    y = "Training Distance"
+  ) +
+  theme_minimal(base_size = 16)
+
+model_SessionKM_3_lmer <- lmer(
+  SessionKM_lead1 ~ 
+    Pride_cm_centered * PA_cm_centered +
+    Pride_cm_centered * Dynamics_centered +
+    Pride_cm_centered * Locus_centered +
+    Pride_cm_centered * Globality_centered +
+    Pride_cm_centered * Affiliation_centered +
+    Pride_cm_centered * Achievement_centered +
+    Pride_cm_centered * Power_centered +
+    (1 | ID),
+  data = long_df,
+  na.action = na.omit,
+  REML = TRUE
+)
+
+vif_KM_min<-vif(model_SessionKM_3_lmer) %>% min() %>% round (2)
+
+vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round (2)
+
 ```
 
 ```{r HLM Table and graphs for H (Duration)}
@@ -1154,7 +1176,7 @@ icc_h<-performance::icc(null_model_h)
 
 
 model_SessionH_1 <- lme(
-  fixed =   SessionH_lead1_log ~   
+  fixed =   SessionH_lead1 ~   
     Pride_cm_centered* PA_cm_centered,
   random = ~ 1 | ID,
   data = long_df, 
@@ -1164,7 +1186,7 @@ model_SessionH_1 <- lme(
 )
 
 model_SessionH_2 <- lme(
-  fixed = SessionH_lead1_log ~ 
+  fixed = SessionH_lead1 ~ 
         Pride_cm_centered* PA_cm_centered + 
     Pride_cm_centered* Dynamics_centered + 
     Pride_cm_centered* Locus_centered + 
@@ -1177,7 +1199,7 @@ model_SessionH_2 <- lme(
 )
 
 model_SessionH_3 <- lme(
-  fixed = SessionH_lead1_log ~ 
+  fixed = SessionH_lead1 ~ 
     Pride_cm_centered * PA_cm_centered+ 
     Pride_cm_centered * Dynamics_centered + 
     Pride_cm_centered * Locus_centered + 
@@ -1193,6 +1215,11 @@ model_SessionH_3 <- lme(
   method = "REML"
 )
 
+
+Rsquared_h<-r.squaredGLMM(model_SessionH_3)
+
+### With the duration log-transformed, the distribution of residuals fits assumptions slightly better
+
 model_SessionH_4 <- lme(
   fixed = SessionH_lead1_log ~ 
    Pride_cm_centered* PA_cm_centered + 
@@ -1207,8 +1234,6 @@ model_SessionH_4 <- lme(
   na.action=na.omit,
     method = "REML"
 )
-
-
 
 ### Table Output #####
 hlmtable_h<-huxreg("Nullmodell" = null_model_h, 
@@ -1310,6 +1335,56 @@ qqplot_h_no_logtransform <-ggplot(SessionH_residuals_no_logtransform, aes(sample
   )
 # qqplot_h+qqplot_h_no_logtransform
 
+# Linearity
+# Select relevant predictors (adjust this list as needed)
+facet_df <- long_df %>%
+  select(
+    SessionH_lead1,
+    Pride_cm_centered,
+    PA_cm_centered,
+    Dynamics_centered,
+    Locus_centered,
+    Globality_centered,
+    Affiliation_centered,
+    Achievement_centered,
+    Power_centered
+  ) %>%
+  pivot_longer(
+    cols = -SessionH_lead1,
+    names_to = "Prädiktor",
+    values_to = "Wert"
+  )
+
+linearity_plot_h <- ggplot(facet_df, aes(x = Wert, y = SessionH_lead1)) +
+  geom_point(alpha = 0.4, color = "grey40") +
+  geom_smooth(method = "loess", se = FALSE, color = "firebrick", linewidth = 1) +
+  facet_wrap(~ Prädiktor, scales = "free_x") +
+  labs(
+    x = "Predictors (centered)",
+    y = "Training Distance"
+  ) +
+  theme_minimal(base_size = 16)
+
+model_SessionH_3_lmer <- lmer(
+  SessionH_lead1 ~ 
+    Pride_cm_centered * PA_cm_centered +
+    Pride_cm_centered * Dynamics_centered +
+    Pride_cm_centered * Locus_centered +
+    Pride_cm_centered * Globality_centered +
+    Pride_cm_centered * Affiliation_centered +
+    Pride_cm_centered * Achievement_centered +
+    Pride_cm_centered * Power_centered +
+    (1 | ID),
+  data = long_df,
+  na.action = na.omit,
+  REML = TRUE
+)
+
+vif_H_min<-vif(model_SessionH_3_lmer) %>% min() %>% round (2)
+
+vif_H_max <- vif(model_SessionH_3_lmer) %>% max() %>% round (2)
+
+
 
 ###### Tests of normality ###############################################
 
@@ -1318,15 +1393,6 @@ ntest_shapiro_h <-shapiro.test(SessionH_residuals $.resid)
 ntest_ks_h <-ks.test(SessionH_residuals  $.resid, "pnorm", mean(SessionH_residuals  $.resid), sd(SessionH_residuals  $.resid), exact = T)
 ntest_ks_h_no_logtransform <-ks.test(SessionH_residuals_no_logtransform  $.resid, "pnorm", mean(SessionH_residuals_no_logtransform  $.resid), sd(SessionH_residuals_no_logtransform  $.resid), exact = T)
 
-
-#### VAriance influence Factor ####
-model_SessionH_1_lmer<- lmer(
-  SessionH_lead1 ~ Pride_cm_centered * PA_cm_centered + (1 | ID), 
-  data = long_df, 
-  na.action = na.omit, 
-  REML = TRUE
-)
-vif(model_SessionH_1_lmer)
 ##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 
 resid_plot_h<-ggplot(data = SessionH_residuals, aes(x = .fitted, y = .resid)) +
@@ -1486,7 +1552,7 @@ hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe,
 Rsquared_rpe<-r.squaredGLMM(model_SessionRPE_3)
 ```
 
-```{r SessionHRPE residual graphs and assumptions check}
+```{r SessionRPE residual graphs and assumptions check}
 #| include: false
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
 
@@ -1558,6 +1624,53 @@ qqplot_rpe_no_logtransform <-ggplot(SessionRPE_residuals_no_logtransform, aes(sa
   )
 # qqplot_rpe+qqplot_rpe_no_logtransform
 
+# Linearity
+# Select relevant predictors (adjust this list as needed)
+facet_df <- long_df %>%
+  select(
+    SessionRPE_lead1,
+    Pride_cm_centered,
+    PA_cm_centered,
+    Dynamics_centered,
+    Locus_centered,
+    Globality_centered,
+    Affiliation_centered,
+    Achievement_centered,
+    Power_centered
+  ) %>%
+  pivot_longer(
+    cols = -SessionRPE_lead1,
+    names_to = "Prädiktor",
+    values_to = "Wert"
+  )
+
+linearity_plot_rpe <- ggplot(facet_df, aes(x = Wert, y = SessionRPE_lead1)) +
+  geom_point(alpha = 0.4, color = "grey40") +
+  geom_smooth(method = "loess", se = FALSE, color = "firebrick", linewidth = 1) +
+  facet_wrap(~ Prädiktor, scales = "free_x") +
+  labs(
+    x = "Predictors (centered)",
+    y = "Training Distance"
+  ) +
+  theme_minimal(base_size = 16)
+
+model_SessionRPE_3_lmer <- lmer(
+  SessionRPE_lead1 ~ 
+    Pride_cm_centered * PA_cm_centered +
+    Pride_cm_centered * Dynamics_centered +
+    Pride_cm_centered * Locus_centered +
+    Pride_cm_centered * Globality_centered +
+    Pride_cm_centered * Affiliation_centered +
+    Pride_cm_centered * Achievement_centered +
+    Pride_cm_centered * Power_centered +
+    (1 | ID),
+  data = long_df,
+  na.action = na.omit,
+  REML = TRUE
+)
+
+
+
 ##### Variance Influence Factor ### 
 model_SessionRPE_3_lmer <- lmer(
   SessionRPE_lead1 ~ 
@@ -1580,13 +1693,12 @@ vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round (2)
 
 ###### Tests of normality ###############################################
 
-#### Test for the Attribution Model #####
 ntest_shapiro_rpe <-shapiro.test(SessionRPE_residuals $.resid)  
 ntest_ks_rpe <-ks.test(SessionRPE_residuals  $.resid, "pnorm", mean(SessionRPE_residuals  $.resid), sd(SessionRPE_residuals  $.resid), exact = T)
 ntest_ks_rpe_no_logtransform <-ks.test(SessionRPE_residuals_no_logtransform  $.resid, "pnorm", mean(SessionRPE_residuals_no_logtransform  $.resid), sd(SessionRPE_residuals_no_logtransform  $.resid), exact = T)
 
 
-##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
+##### Visualisation of homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 
 resid_plot_rpe<-ggplot(data = SessionRPE_residuals, aes(x = .fitted, y = .resid)) +
   geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
@@ -1638,25 +1750,6 @@ outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, y = ID)) +
 
 ```
 
-```{r exploring assumptions for the HLMs}
-#| include: false
-
-## These are some ideas for visualisations of the models
-# Diagnostic plots for model
-Homoscedasticity_plotH <-plot_model(model_SessionRPE_3, type = "diag") 
-
-
-Homoscedasticity_plot <-plot_model(model_SessionKM_4, type = "resid") 
-
-pride_dynamics_plot<- plot_model(
-  model_SessionKM_4,
-  type = "int",
-  terms = c("Pride_cm_centered", "Dynamics_centered"),
-  title = "Interaction: Pride × Dynamics"
-)
-globality_plot<-plot_model(model_SessionKM_4, type = "pred", terms = c("Globality_centered"), show.data = T, jitter = .2, grid = T, axis.title = c("Globality", "Running Distance in KM"), title = "Predicted running distance through Globality")# This shows more globality means less km, but its because of the negative interaction term with pride. 
-
-```
 
 ## Analysis
 
@@ -1664,7 +1757,7 @@ We excluded participants manually if they reported data on less than two trainin
 
 The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
 
-We used the nlme-package [@nlme] for the hierarchical linear models. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure entangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
+We used the nlme-package [@nlme] for the hierarchical linear models, because it allows the use of a covariation matrix. However, using a covariation matrix did not improve the model fit, so no correlation matrix was used. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure disentangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
 
 The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then checked for three statistical assumptions: the absence of multicollinearity, homoscedasticity, and the normal distribution of residuals. We also assessed if a correlation matrix improved the model fit.
 
@@ -1684,7 +1777,11 @@ The results for the hierarchical linear models are presented separately for each
 
 In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values reported by swimmers, runners, and triathlets. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_km.
 
-The residuals were normally distributed (*p* = `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+The residuals were normally distributed (*p* = `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows a QQ-plot of the residuals along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+
+The variance influence factor ranged from *vif~min~* = ``r vif_KM_min` to *vif~max~* = `r vif_KM_max`. 
+
+The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(2)`.
 
 ```{r}
 #| label: tbl-hlmtable_km
@@ -1704,11 +1801,27 @@ hlmtable
   
 ```
 
+```{r}
+#| label: fig-linearity
+#| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
+#| apa-note: This is the note below the figure.
+#| fig-height: 10
+#| fig-width: 10
+linearity_plot
+  
+```
+
 ## Session duration
 
-In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values that triathletes reported, and those that were reported by runners. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_h.
+The parameters for this model that predicted session duration are shown in @tbl-hlmtable_h.
 
 The residuals were normally distributed (*p* = `r round(ntest_ks_h $p.value, 2)` ). @fig-sessionh_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+
+The variance influence factor ranged from *vif~min~* = ``r vif_H_min` to *vif~max~* = `r vif_H_max`. 
+
+The marginal and conditional R-squared values were *R^2^~marginal~* = `r Rsquared_h[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_h[2] %>% round(2)`.
+
+@fig-linearity_h shows the predictors plotted against session duration to assess linearity. 
 
 ```{r}
 #| label: tbl-hlmtable_h
@@ -1728,6 +1841,16 @@ hlmtable_h
   
 ```
 
+```{r}
+#| label: fig-linearity_h
+#| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
+#| apa-note: This is the note below the figure.
+#| fig-height: 10
+#| fig-width: 10
+linearity_plot_h
+  
+```
+
 ## Session Rate of Perceived Exhaustion
 
 The regression coefficients are shown in @tbl-hlmtable_h. The third model with all predictors shows the lowest AIC and log likelihood. To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time. However, this did not result in a better model fit ( *p* = `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure (Model 3).
@@ -1736,9 +1859,11 @@ A more stable attribution style predicted a lower RPE, and so did the interactio
 
 The residuals were normally distributed in a Kolmogorov-Smirnov test (*p* = `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm \[LIT\]. @fig-sessionrpe_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data.
 
-To assess multicollinearity, we computed the variance influence factor which ranged from *vif~min~* = `r vif_RPE_min` to *vif~max~* = `r vif_RPE_max`.
+The variance influence factor was between *vif~min~* = `r vif_RPE_min` and *vif~max~* = `r vif_RPE_max`.
 
-The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_rpe[1]` and *R^2^~conditional~* = `r Rsquared_rpe[2]`.
+The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_rpe[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_rpe[2] %>% round(2)`.
+
+ @fig-linearity_rpe shows the predictors plotted against the target variable. 
 
 ```{r}
 #| label: tbl-hlmtable_rpe
@@ -1758,12 +1883,13 @@ hlmtable_rpe
 ```
 
 ```{r}
-#| label: fig-globality_times_pride
-#| fig-cap: Predictive Contribution of Globality, which interacts with pride
+#| label: fig-linearity_rpe
+#| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
 #| apa-note: This is the note below the figure.
-#| fig-height: 15
+#| fig-height: 10
 #| fig-width: 10
-globality_plot
+linearity_plot
+  
 ```
 
 # Discussion
