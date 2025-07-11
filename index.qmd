@@ -425,6 +425,17 @@ get_descriptive_table <- function(df, language = "German") {
   }
   return(df_stat)}
 
+# Format p values for markdown reporting
+format_p <- function(p, digits = 3) {
+  ifelse(p < 0.001, "< .001",
+    ifelse(p < 0.01, "< .01",
+      ifelse(p < 0.05, "< .05",
+        paste0("= ", round(p, digits))
+      )
+    )
+  )
+}
+
 
 ```
 
@@ -937,11 +948,11 @@ icc_km<-performance::icc(null_model_km)
 model_SessionKM_1 <- lme(
   fixed = SessionKM_lead1 ~ Pride_cm_centered * PA_cm_centered,
   random = ~ 1 | ID,
+  correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df,
   na.action = na.omit,
   method = "REML"
 )
-
 
 model_SessionKM_2 <- update(model_SessionKM_1,
   fixed = . ~ . +
@@ -957,8 +968,27 @@ model_SessionKM_3 <- update(model_SessionKM_2,
     Pride_cm_centered * Power_centered
 )
 
+#### Does a correlation matrix improfe model fit? 
+
+model_SessionKM_3_no_corr_matrix <- lme(
+  fixed = SessionKM_lead1 ~ Pride_cm_centered * PA_cm_centered +
+    Pride_cm_centered * Dynamics_centered +
+    Pride_cm_centered * Locus_centered +
+    Pride_cm_centered * Globality_centered +
+    Pride_cm_centered * Affiliation_centered +
+    Pride_cm_centered * Achievement_centered +
+    Pride_cm_centered * Power_centered,
+  random = ~ 1 | ID,
+  data = long_df,
+  na.action = na.omit,
+  method = "REML"
+)
+
+corAR_test_km<-anova(model_SessionKM_3, model_SessionKM_3_no_corr_matrix) # The model with correlation matrix fits significantly better
+
 
 Rsquared_km<-r.squaredGLMM(model_SessionKM_3)
+
 
 ### Table Output #####
 # Distance
@@ -966,6 +996,7 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
                  "Model 1" = model_SessionKM_1, 
                  "Model 2" = model_SessionKM_2, 
                  "Model 3" = model_SessionKM_3,
+                 "Model 4" = model_SessionKM_3_no_corr_matrix,
                  statistics = NULL, 
                  number_format = 2, 
                  bold_signif = 0.05, 
@@ -998,7 +1029,7 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
 ##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
 
 # Extract Residuals
-SessionKM_residuals <- hlm_resid(model_SessionKM_2, level=1, include.ls = T) 
+SessionKM_residuals <- hlm_resid(model_SessionKM_3_no_corr_matrix, level=1, include.ls = T) 
 ########Normality Plots #####
 # Normality Plot with least square residuals
 ndist_plot_km_ls <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
@@ -1157,6 +1188,7 @@ vif_KM_min<-vif(model_SessionKM_3_lmer) %>% min() %>% round (2)
 
 vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round (2)
 
+
 ```
 
 ```{r HLM Table and graphs for H (Duration)}
@@ -1174,11 +1206,11 @@ summary(null_model_h)
 #The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
 icc_h<-performance::icc(null_model_h)
 
-
 model_SessionH_1 <- lme(
   fixed =   SessionH_lead1 ~   
     Pride_cm_centered* PA_cm_centered,
   random = ~ 1 | ID,
+  correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
   
@@ -1192,6 +1224,7 @@ model_SessionH_2 <- lme(
     Pride_cm_centered* Locus_centered + 
     Pride_cm_centered* Globality_centered ,
   random = ~ 1 | ID,
+  correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
   
@@ -1208,7 +1241,7 @@ model_SessionH_3 <- lme(
     Pride_cm_centered * Achievement_centered + 
     Pride_cm_centered * Power_centered,
   random = ~ 1 | ID,
-
+  correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
   
@@ -1218,10 +1251,8 @@ model_SessionH_3 <- lme(
 
 Rsquared_h<-r.squaredGLMM(model_SessionH_3)
 
-### With the duration log-transformed, the distribution of residuals fits assumptions slightly better
-
-model_SessionH_4 <- lme(
-  fixed = SessionH_lead1_log ~ 
+model_SessionH_3_no_corr_matrix <- lme(
+  fixed = SessionH_lead1 ~ 
    Pride_cm_centered* PA_cm_centered + 
    Pride_cm_centered* Dynamics_centered +
    Pride_cm_centered* Locus_centered + 
@@ -1234,12 +1265,13 @@ model_SessionH_4 <- lme(
   na.action=na.omit,
     method = "REML"
 )
-
+corAR_test_h <- anova( model_SessionH_3, model_SessionH_3_no_corr_matrix)
 ### Table Output #####
 hlmtable_h<-huxreg("Nullmodell" = null_model_h, 
                    "Model 1" = model_SessionH_1, 
                    "Model 2" = model_SessionH_2, 
                    "Model 3" = model_SessionH_3,
+                   "Model 3 without correlation matrix" = model_SessionH_3_no_corr_matrix,
                    statistics = NULL, number_format = 2, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right",
                   coefs = c(
     "(Intercept)" = "(Intercept)",
@@ -1269,7 +1301,6 @@ hlmtable_h<-huxreg("Nullmodell" = null_model_h,
 
 # Extract Residuals
 SessionH_residuals <- hlm_resid(model_SessionH_3, level=1, include.ls = T) 
-SessionH_residuals_no_logtransform <- hlm_resid(model_SessionH_4, level=1, include.ls = T) 
 ########Normality Plots #####
 # Normality Plot with least square residuals
 ndist_plot_h_ls <- ggplot(data = SessionH_residuals  , aes(.ls.resid)) +
@@ -1320,20 +1351,6 @@ qqplot_h<-ggplot(SessionH_residuals, aes(sample = .resid)) +
     axis.text = element_text(size = 10),
     panel.border = element_rect(fill = NA, color = "black")
   )
-qqplot_h_no_logtransform <-ggplot(SessionH_residuals_no_logtransform, aes(sample = .resid)) +
-  stat_qq(shape = 21, color = "black", fill = "black", size = 2) +
-  stat_qq_line(color = "black", linetype = "dashed") +
-  labs(
-    x = "Theoretical Quantiles",
-    y = "Sample Quantiles"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-# qqplot_h+qqplot_h_no_logtransform
 
 # Linearity
 # Select relevant predictors (adjust this list as needed)
@@ -1391,7 +1408,6 @@ vif_H_max <- vif(model_SessionH_3_lmer) %>% max() %>% round (2)
 #### Test for the Attribution Model #####
 ntest_shapiro_h <-shapiro.test(SessionH_residuals $.resid)  
 ntest_ks_h <-ks.test(SessionH_residuals  $.resid, "pnorm", mean(SessionH_residuals  $.resid), sd(SessionH_residuals  $.resid), exact = T)
-ntest_ks_h_no_logtransform <-ks.test(SessionH_residuals_no_logtransform  $.resid, "pnorm", mean(SessionH_residuals_no_logtransform  $.resid), sd(SessionH_residuals_no_logtransform  $.resid), exact = T)
 
 ##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 
@@ -1410,21 +1426,6 @@ resid_plot_h<-ggplot(data = SessionH_residuals, aes(x = .fitted, y = .resid)) +
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-resid_plot_h_no_logtransform<-ggplot(data = SessionH_residuals_no_logtransform, aes(x = .fitted, y = .resid)) +
-  geom_point(shape = 15, color = "black", size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    x = "Fitted Values",
-    y = "Residuals",
-    title = NULL
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-#resid_plot_h+resid_plot_h_no_logtransform
 # Outliers (All)
 ggplot(data = SessionH_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
 
@@ -1468,9 +1469,9 @@ model_SessionRPE_1 <- lme(
   fixed =   SessionRPE_lead1~   
     Pride_cm_centered* PA_cm_centered,
   random = ~ 1 | ID,
+   correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
-  
   method = "REML"
 )
 
@@ -1481,6 +1482,7 @@ model_SessionRPE_2 <- lme(
     Pride_cm_centered* Locus_centered + 
     Pride_cm_centered* Globality_centered ,
   random = ~ 1 | ID,
+   correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
   
@@ -1497,7 +1499,7 @@ model_SessionRPE_3 <- lme(
     Pride_cm_centered * Achievement_centered + 
     Pride_cm_centered * Power_centered,
   random = ~ 1 | ID,
-
+ correlation = nlme::corCAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit, 
   
@@ -1514,7 +1516,6 @@ model_SessionRPE_4 <- lme(
     Pride_cm_centered* Achievement_centered + 
     Pride_cm_centered* Power_centered,
   random = ~ 1 | ID,
- correlation = nlme::corAR1(form = ~ Time | ID),
   data = long_df, 
   na.action=na.omit,
     method = "REML"
@@ -1528,6 +1529,7 @@ hlmtable_rpe<-huxreg("Nullmodell" = null_model_rpe,
                      "Model 1" = model_SessionRPE_1, 
                      "Model 2" = model_SessionRPE_2, 
                      "Model 3" = model_SessionRPE_3,
+                     "Model 3 without correlation matrix" = model_SessionRPE_4,
                      statistics = NULL, number_format = 2, bold_signif = 0.05, tidy_args =  list(effects = "fixed"), error_pos="right",
                      coefs = c(
     "(Intercept)" = "(Intercept)",
@@ -1757,9 +1759,9 @@ We excluded participants manually if they reported data on less than two trainin
 
 The baseline kilometer variable were standardized within their respective sport group, that is, running vs. triathlon. `r missings_percentage` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. Descriptive statistics were calculated for all variables - descriptive statistics - correlation
 
-We used the nlme-package [@nlme] for the hierarchical linear models, because it allows the use of a covariation matrix. However, using a covariation matrix did not improve the model fit, so no correlation matrix was used. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure disentangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015. They authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
+We used the nlme-package [@nlme] for the hierarchical linear models, because it allows the use of a covariation matrix. However, using a covariation matrix did not improve the model fit, so no correlation matrix was used. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This procedure disentangles the between-person-effects from the within-person-effects. This is in line with recommendations of @Wang2015: The authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. To illustrate this, it is possible that within a person, a lack of pride after a run predicts a greater running distance in the next session. At the same time, people who less proud on average do not necessarily run more.
 
-The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then checked for three statistical assumptions: the absence of multicollinearity, homoscedasticity, and the normal distribution of residuals. We also assessed if a correlation matrix improved the model fit.
+The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then examined the model quality, checking for normal distribution of residuals, homoscedasticity, absence of multicollinearity, linearity and outliers. We also assessed if a correlation matrix improved the model fit.
 
 ## Participants
 
@@ -1773,15 +1775,26 @@ The results for the hierarchical linear models are presented separately for each
 
 ## Results
 
+ 
 ## Session distance
 
 In this model, we used interaction terms of pride with positive affect, causal attribution and implicit motives to predict running distance. The running distance was z-standardized to allow a comparison between the kilometer values reported by swimmers, runners, and triathlets. We added predictors to the null model in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. The result is shown in @tbl-hlmtable_km.
 
-The residuals were normally distributed (*p* = `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows a QQ-plot of the residuals along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+The intraclass correlation coefficient was *ICC* = `r icc_km[1]$ICC_adjusted %>% round (2)`. 
+To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time.
+Model 3 included meaningful predictors and the lowest log-likelihood, it also fit significantly better than the same model without a correlation matrix *p* = `r corAR_test_km$"p-value"[2] %>% format_p()`. Thus, Model 3 was selected for further analysis of statistical assumptions and the discussion. 
 
-The variance influence factor ranged from *vif~min~* = ``r vif_KM_min` to *vif~max~* = `r vif_KM_max`. 
+The residuals were normally distributed (*p* = `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows a QQ-plot and scatterplot of the residuals. Here, the residuals are concentrated in the left, indicating a slight deviation from the assumption of homoscedasticity. 
+
+The variance influence factor ranged from *vif~min~* = `r vif_KM_min` to *vif~max~* = `r vif_KM_max`. 
+
+Linearity was assessed by plotting each predictor against the outcome variable and examining LOESS-smoothed lines for deviations from linear trends. @fig-linearity shows substantial deviations from linearity. @fig-outliers shows the distribution of outliers in the residuals according to each individual. 
 
 The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(2)`.
+
+
+
+
 
 ```{r}
 #| label: tbl-hlmtable_km
@@ -1793,7 +1806,7 @@ hlmtable
 
 ```{r}
 #| label: fig-sessionkm_assumptions
-#| fig-cap: Histogram and QQ-Plot of Residuals for the running Distance Model
+#| fig-cap: Histogram and QQ-Plot of Residuals for the running distance model
 #| apa-note: This is the note below the figure.
 #| fig-height: 10
 #| fig-width: 10
@@ -1804,24 +1817,39 @@ hlmtable
 ```{r}
 #| label: fig-linearity
 #| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
-#| apa-note: This is the note below the figure.
+#| apa-note: Pride and positive affect were cluster mean centered, the other predictors were grand mean centered. 
 #| fig-height: 10
 #| fig-width: 10
 linearity_plot
+```
+
+```{r}
+#| label: fig-outliers
+#| fig-cap: Outliers of residuals for each individual
+#| apa-note: Outliers are shown as grey circle
+#| fig-height: 10
+#| fig-width: 10
+outl_plot_km
   
 ```
+
 
 ## Session duration
 
 The parameters for this model that predicted session duration are shown in @tbl-hlmtable_h.
+The ICC was *ICC* = `r icc_h$ICC_adjusted[1] %>% round(3)`. 
 
-The residuals were normally distributed (*p* = `r round(ntest_ks_h $p.value, 2)` ). @fig-sessionh_assumptions shows the deviation from the normal distribution along with the distribution of residuals. The latter should show no pattern, since this would indicate that there are predictors unaccounted for. While this seems to be the case, the residuals are slightly skewed to the left, indicating limited variance in the kilometer variable.
+No model showed meaningful predictors of running distance. A correlation matrix only slightly and non-significantly improved model fit (*p* = `r corAR_test_h$"p-value"[2] %>% format_p()`). The model with the correlation matrix (Model 3) was retained. 
 
-The variance influence factor ranged from *vif~min~* = ``r vif_H_min` to *vif~max~* = `r vif_H_max`. 
+The residuals were normally distributed in a Kolmogorov-Smirnov-Test (*p* = `r round(ntest_ks_h $p.value, 2)` ), but not in a Shapiro-Wilk-test (*p* = `r ntest_shapiro_h$p.value %>% format_p()`). A slight deviation from the normal distribution of residuals and the assumption of homoscedasticity is apparent in @fig-sessionh_assumptions. 
 
-The marginal and conditional R-squared values were *R^2^~marginal~* = `r Rsquared_h[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_h[2] %>% round(2)`.
+The variance influence factor ranged from *vif~min~* = `r vif_H_min` to *vif~max~* = `r vif_H_max`. 
 
 @fig-linearity_h shows the predictors plotted against session duration to assess linearity. 
+
+@fig-outliers_h shows two outliers in the residuals of the model. 
+
+The marginal and conditional R-squared values were *R^2^~marginal~* = `r Rsquared_h[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_h[2] %>% round(2)`.
 
 ```{r}
 #| label: tbl-hlmtable_h
@@ -1842,6 +1870,16 @@ hlmtable_h
 ```
 
 ```{r}
+#| label: fig-outliers_h
+#| fig-cap: Outliers of residuals for each individual
+#| apa-note:  Outliers are shown as grey circle
+#| fig-height: 10
+#| fig-width: 10
+outl_plot_h
+  
+```
+
+```{r}
 #| label: fig-linearity_h
 #| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
 #| apa-note: This is the note below the figure.
@@ -1850,10 +1888,20 @@ hlmtable_h
 linearity_plot_h
   
 ```
+<!-- 1. Tabelle
+2. ICC
+Correlation matrix
+3. Normalverteilung
+4. homoscedasticity of residuals 8graph
+5. multicollinearity vif
+6. Linearität
+7. Ausreißer
+8. R squared
+ -->
 
 ## Session Rate of Perceived Exhaustion
 
-The regression coefficients are shown in @tbl-hlmtable_h. The third model with all predictors shows the lowest AIC and log likelihood. To account for the possible autocorrelation of repeated measurements, we employed an autoregressive process of order 1 (AR(1)) correlation structure using the corAR1 class from the nlme package in R. This structure was used to model the correlation between observations that are sequentially related in time. However, this did not result in a better model fit ( *p* = `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure (Model 3).
+The regression coefficients are shown in @tbl-hlmtable_rpe. The third model with all predictors shows the lowest AIC and log likelihood. T However, this did not result in a better model fit ( *p* = `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure (Model 3).
 
 A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
 
