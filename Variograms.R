@@ -27,7 +27,7 @@ ggplot(variogram_h, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionKM",
+    title = "Variogram: SessionH",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
@@ -37,7 +37,7 @@ ggplot(variogram_rpe, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionKM",
+    title = "Variogram: SessionRPE",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
