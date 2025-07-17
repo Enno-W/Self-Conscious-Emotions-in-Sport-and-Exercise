@@ -47,7 +47,7 @@ if (!requireNamespace("needs", quietly = TRUE)) {
   install.packages("needs")
 }
 library(needs)
-needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr, car, readxl)
+needs(xfun, tidyverse, remotes, devtools, mice, pastecs,svglite, HLMdiag, gtsummary, cardx, flextable, lme4, nlme, pwr,huxtable, broom.mixed, patchwork, sjPlot, ggcorrplot, lmerTest, MuMIn, mlmhelpr, car, readxl, lmtest)
 
 
 ```
@@ -1188,6 +1188,109 @@ vif_KM_min<-vif(model_SessionKM_3_lmer) %>% min() %>% round (2)
 
 vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round (2)
 
+#### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
+# Extract Level-2 residuals
+KM_residuals_level2 <- hlm_resid(model_SessionKM_3, level = "ID", include.ls = FALSE)
+
+ggplot(data = KM_residuals_level2, aes(.ranef.intercept)) +
+  
+  geom_histogram(aes(y =after_stat(density)), bins=20) + stat_function(fun = dnorm,
+                                                                args = list(mean = mean(KM_residuals_level2$.ranef.intercept),
+                                                                            sd = sd(KM_residuals_level2$.ranef.intercept)), size=2)
+
+# Shapiro-Wilk Test: Are level 2 residuals normally distributed??
+level2.resids.shapirotest <- shapiro.test(KM_residuals_level2$.ranef.intercept)
+
+ # Extract Level-2 random effects
+
+l2_residuen <- ranef(model_SessionKM_3) %>%
+  tibble::rownames_to_column(var = "ID") %>%
+  rename(ranef_intercept = `(Intercept)`)
+
+
+fixefs <- fixef(model_SessionKM_3)
+
+#Compute Level-2 predictor means (aggregated to person level)
+l2_preds <- long_df %>%
+  group_by(ID) %>%
+  summarise(
+    Pride_cm_centered = mean(Pride_cm_centered, na.rm = TRUE),
+    PA_cm_centered = mean(PA_cm_centered, na.rm = TRUE),
+    Dynamics_centered = mean(Dynamics_centered, na.rm = TRUE),
+    Locus_centered = mean(Locus_centered, na.rm = TRUE),
+    Globality_centered = mean(Globality_centered, na.rm = TRUE),
+    Affiliation_centered = mean(Affiliation_centered, na.rm = TRUE),
+    Achievement_centered = mean(Achievement_centered, na.rm = TRUE),
+    Power_centered = mean(Power_centered, na.rm = TRUE)
+  ) %>%
+  mutate(ID = as.character(ID))
+
+l2_preds <- l2_preds %>%
+  mutate(
+    `Pride_cm_centered:PA_cm_centered` = Pride_cm_centered * PA_cm_centered,
+    `Pride_cm_centered:Dynamics_centered` = Pride_cm_centered * Dynamics_centered,
+    `Pride_cm_centered:Locus_centered` = Pride_cm_centered * Locus_centered,
+    `Pride_cm_centered:Globality_centered` = Pride_cm_centered * Globality_centered,
+    `Pride_cm_centered:Affiliation_centered` = Pride_cm_centered * Affiliation_centered,
+    `Pride_cm_centered:Achievement_centered` = Pride_cm_centered * Achievement_centered,
+    `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
+  )
+
+
+# Predict person-level average outcome based on fixed effects
+l2_preds <- l2_preds %>%
+  mutate(
+    pred =
+      fixefs["(Intercept)"] +
+      fixefs["Pride_cm_centered"] * `Pride_cm_centered` +
+      fixefs["PA_cm_centered"] * `PA_cm_centered` +
+      fixefs["Dynamics_centered"] * `Dynamics_centered` +
+      fixefs["Locus_centered"] * `Locus_centered` +
+      fixefs["Globality_centered"] * `Globality_centered` +
+      fixefs["Affiliation_centered"] * `Affiliation_centered` +
+      fixefs["Achievement_centered"] * `Achievement_centered` +
+      fixefs["Power_centered"] * `Power_centered` +
+      fixefs["Pride_cm_centered:PA_cm_centered"] * `Pride_cm_centered:PA_cm_centered` +
+      fixefs["Pride_cm_centered:Dynamics_centered"] * `Pride_cm_centered:Dynamics_centered` +
+      fixefs["Pride_cm_centered:Locus_centered"] * `Pride_cm_centered:Locus_centered` +
+      fixefs["Pride_cm_centered:Globality_centered"] * `Pride_cm_centered:Globality_centered` +
+      fixefs["Pride_cm_centered:Affiliation_centered"] * `Pride_cm_centered:Affiliation_centered` +
+      fixefs["Pride_cm_centered:Achievement_centered"] * `Pride_cm_centered:Achievement_centered` +
+      fixefs["Pride_cm_centered:Power_centered"] * `Pride_cm_centered:Power_centered`
+  )
+
+l2_preds <- l2_preds %>%
+  mutate(ID = as.character(ID))
+#Join predicted values and Level-2 residuals
+plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
+plot_df
+# Plot
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte", y = "Random Intercepts",
+       title = "Diagnose: Homoskedastizität auf Level 2")
+
+
+#Plot: Predicted Level-2 values vs. random intercepts
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte (Prädiktion durch Fixeffekte)",
+       y = "Residuen (Random Intercepts)",
+       title = "Diagnose: Homoskedastizität und Linearisität auf Level 2")
+
+### Statistical test
+
+
+
+bp_test_km <- bptest(ranef_intercept ~ pred, data = plot_df) # Not significant
+
+
+
+
 
 ```
 
@@ -1823,13 +1926,13 @@ outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, y = ID)) +
 
 We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. 
  `r missings_percentage` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. 
-We assumed that the measurements at each point were intercorrelated, leading to autoregressive noise. Using the `variogram ()`- function of {nlme}, we examined variograms to assess the correlation structure between measurement points. The results suggested that autoregressive noise was present: The semivariance changed substantially with distance between observations. Thus, we included an autocorrelation structure of order 1 (AR1) in the models.
+Since the questionnaires were sent out in weekly intervals, we expected autocorrelation between measurement points. Through inspecting variograms, we assessed the correlation structure between measurement points. The results suggested that autoregressive noise was present: The semivariance changed substantially with distance between observations. Thus, we included an autocorrelation structure of order 1 (AR1) in the models.
 
 Time was not included as predictor, since we did not expect a trend over time. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This disentangles the between-person-effects from the within-person-effects, in line with recommendations of @Wang2015: The authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. 
 To illustrate this, it is possible that within a person, less pride after a run predicts a greater running distance in the next session. At the same time, people who are less proud on average do not necessarily run more.
 Lastly, we z-standardised all predictors for easier interpretation. 
 
-The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then examined the model quality, checking for normal distribution of residuals, homoscedasticity, absence of multicollinearity, linearity and outliers. We also assessed if a correlation matrix improved the model fit.
+The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then examined the model quality, checking for normal distribution of residuals, homoscedasticity (constant variance of residuals), absence of multicollinearity, linearity and outliers. We also assessed if a correlation matrix improved the model fit.
 
 ## Participants
 
@@ -1857,7 +1960,10 @@ The variance influence factor ranged from *vif~min~* = `r vif_KM_min` to *vif~ma
 
 Linearity was assessed by plotting each predictor against the outcome variable and examining LOESS-smoothed lines for deviations from linear trends. @fig-linearity shows substantial deviations from linearity. @fig-outliers shows the distribution of outliers in the residuals according to each individual. 
 
-The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(2)`.
+The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(3)`.
+
+
+On the individual level (level 2), the residuals were not normally distributed (*p* = `r level2.resids.shapirotest$p.value %>% round(3)`). No deviation from the assumption of homoscedasticity was present (*p* = `r bp_test_km$p.value[1] %>% round(3) `). 
 
 
 
@@ -1983,7 +2089,7 @@ The marginal and conditional R-squared values, representing the portion of varia
 ```{r}
 #| label: tbl-hlmtable_rpe
 #| tbl-cap: Hierarchical Linear Model Coefficients Predicting Session Rate of Perceived Exhaustion 
-#| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. In Model 4, the dependent variable was log-transformed to address heteroscedasticity and normality of residues. The fit indices of Model 4 are not directly comparable to models 1-3. 
+#| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. 
 hlmtable_rpe
 ```
 
