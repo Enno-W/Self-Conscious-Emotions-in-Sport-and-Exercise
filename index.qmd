@@ -1550,6 +1550,110 @@ outl_plot_h <- ggplot(SessionH_residuals, aes(x = .resid, y = ID)) +
   )
 
 
+#### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
+# Extract Level-2 residuals
+H_residuals_level2 <- hlm_resid(model_SessionH_3, level = "ID", include.ls = FALSE)
+
+ggplot(data = H_residuals_level2, aes(.ranef.intercept)) +
+  
+  geom_histogram(aes(y =after_stat(density)), bins=20) + stat_function(fun = dnorm,
+                                                                args = list(mean = mean(H_residuals_level2$.ranef.intercept),
+                                                                            sd = sd(H_residuals_level2$.ranef.intercept)), size=2)
+
+# Shapiro-Wilk Test: Are level 2 residuals normally distributed?
+level2.resids.shapirotest_h <- shapiro.test(H_residuals_level2$.ranef.intercept)
+
+ # Extract Level-2 random effects
+
+l2_residuen <- ranef(model_SessionH_3) %>%
+  tibble::rownames_to_column(var = "ID") %>%
+  rename(ranef_intercept = `(Intercept)`)
+
+
+fixefs <- fixef(model_SessionH_3)
+
+#Compute Level-2 predictor means (aggregated to person level)
+l2_preds <- long_df %>%
+  group_by(ID) %>%
+  summarise(
+    Pride_cm_centered = mean(Pride_cm_centered, na.rm = TRUE),
+    PA_cm_centered = mean(PA_cm_centered, na.rm = TRUE),
+    Dynamics_centered = mean(Dynamics_centered, na.rm = TRUE),
+    Locus_centered = mean(Locus_centered, na.rm = TRUE),
+    Globality_centered = mean(Globality_centered, na.rm = TRUE),
+    Affiliation_centered = mean(Affiliation_centered, na.rm = TRUE),
+    Achievement_centered = mean(Achievement_centered, na.rm = TRUE),
+    Power_centered = mean(Power_centered, na.rm = TRUE)
+  ) %>%
+  mutate(ID = as.character(ID))
+
+l2_preds <- l2_preds %>%
+  mutate(
+    `Pride_cm_centered:PA_cm_centered` = Pride_cm_centered * PA_cm_centered,
+    `Pride_cm_centered:Dynamics_centered` = Pride_cm_centered * Dynamics_centered,
+    `Pride_cm_centered:Locus_centered` = Pride_cm_centered * Locus_centered,
+    `Pride_cm_centered:Globality_centered` = Pride_cm_centered * Globality_centered,
+    `Pride_cm_centered:Affiliation_centered` = Pride_cm_centered * Affiliation_centered,
+    `Pride_cm_centered:Achievement_centered` = Pride_cm_centered * Achievement_centered,
+    `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
+  )
+
+
+# Predict person-level average outcome based on fixed effects
+l2_preds <- l2_preds %>%
+  mutate(
+    pred =
+      fixefs["(Intercept)"] +
+      fixefs["Pride_cm_centered"] * `Pride_cm_centered` +
+      fixefs["PA_cm_centered"] * `PA_cm_centered` +
+      fixefs["Dynamics_centered"] * `Dynamics_centered` +
+      fixefs["Locus_centered"] * `Locus_centered` +
+      fixefs["Globality_centered"] * `Globality_centered` +
+      fixefs["Affiliation_centered"] * `Affiliation_centered` +
+      fixefs["Achievement_centered"] * `Achievement_centered` +
+      fixefs["Power_centered"] * `Power_centered` +
+      fixefs["Pride_cm_centered:PA_cm_centered"] * `Pride_cm_centered:PA_cm_centered` +
+      fixefs["Pride_cm_centered:Dynamics_centered"] * `Pride_cm_centered:Dynamics_centered` +
+      fixefs["Pride_cm_centered:Locus_centered"] * `Pride_cm_centered:Locus_centered` +
+      fixefs["Pride_cm_centered:Globality_centered"] * `Pride_cm_centered:Globality_centered` +
+      fixefs["Pride_cm_centered:Affiliation_centered"] * `Pride_cm_centered:Affiliation_centered` +
+      fixefs["Pride_cm_centered:Achievement_centered"] * `Pride_cm_centered:Achievement_centered` +
+      fixefs["Pride_cm_centered:Power_centered"] * `Pride_cm_centered:Power_centered`
+  )
+
+l2_preds <- l2_preds %>%
+  mutate(ID = as.character(ID))
+#Join predicted values and Level-2 residuals
+plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
+
+# Plot
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte", y = "Random Intercepts",
+       title = "Diagnose: Homoskedastizität auf Level 2")
+
+
+#Plot: Predicted Level-2 values vs. random intercepts
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte (Prädiktion durch Fixeffekte)",
+       y = "Residuen (Random Intercepts)",
+       title = "Diagnose: Homoskedastizität und Linearisität auf Level 2")
+
+### Statistical test
+
+
+
+bp_test_h <- bptest(ranef_intercept ~ pred, data = plot_df) # Not significant
+
+
+
+
+
 ```
 
 ```{r HLM Table for RPE}
@@ -1919,6 +2023,109 @@ outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, y = ID)) +
   )
 
 
+#### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
+# Extract Level-2 residuals
+RPE_residuals_level2 <- hlm_resid(model_SessionRPE_3, level = "ID", include.ls = FALSE)
+
+ggplot(data = RPE_residuals_level2, aes(.ranef.intercept)) +
+  
+  geom_histogram(aes(y =after_stat(density)), bins=20) + stat_function(fun = dnorm,
+                                                                args = list(mean = mean(RPE_residuals_level2$.ranef.intercept),
+                                                                            sd = sd(RPE_residuals_level2$.ranef.intercept)), size=2)
+
+# Shapiro-Wilk Test: Are level 2 residuals normally distributed?
+level2.resids.shapirotest_rpe <- shapiro.test(RPE_residuals_level2$.ranef.intercept)
+
+ # Extract Level-2 random effects
+
+l2_residuen <- ranef(model_SessionRPE_3) %>%
+  tibble::rownames_to_column(var = "ID") %>%
+  rename(ranef_intercept = `(Intercept)`)
+
+
+fixefs <- fixef(model_SessionRPE_3)
+
+#Compute Level-2 predictor means (aggregated to person level)
+l2_preds <- long_df %>%
+  group_by(ID) %>%
+  summarise(
+    Pride_cm_centered = mean(Pride_cm_centered, na.rm = TRUE),
+    PA_cm_centered = mean(PA_cm_centered, na.rm = TRUE),
+    Dynamics_centered = mean(Dynamics_centered, na.rm = TRUE),
+    Locus_centered = mean(Locus_centered, na.rm = TRUE),
+    Globality_centered = mean(Globality_centered, na.rm = TRUE),
+    Affiliation_centered = mean(Affiliation_centered, na.rm = TRUE),
+    Achievement_centered = mean(Achievement_centered, na.rm = TRUE),
+    Power_centered = mean(Power_centered, na.rm = TRUE)
+  ) %>%
+  mutate(ID = as.character(ID))
+
+l2_preds <- l2_preds %>%
+  mutate(
+    `Pride_cm_centered:PA_cm_centered` = Pride_cm_centered * PA_cm_centered,
+    `Pride_cm_centered:Dynamics_centered` = Pride_cm_centered * Dynamics_centered,
+    `Pride_cm_centered:Locus_centered` = Pride_cm_centered * Locus_centered,
+    `Pride_cm_centered:Globality_centered` = Pride_cm_centered * Globality_centered,
+    `Pride_cm_centered:Affiliation_centered` = Pride_cm_centered * Affiliation_centered,
+    `Pride_cm_centered:Achievement_centered` = Pride_cm_centered * Achievement_centered,
+    `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
+  )
+
+
+# Predict person-level average outcome based on fixed effects
+l2_preds <- l2_preds %>%
+  mutate(
+    pred =
+      fixefs["(Intercept)"] +
+      fixefs["Pride_cm_centered"] * `Pride_cm_centered` +
+      fixefs["PA_cm_centered"] * `PA_cm_centered` +
+      fixefs["Dynamics_centered"] * `Dynamics_centered` +
+      fixefs["Locus_centered"] * `Locus_centered` +
+      fixefs["Globality_centered"] * `Globality_centered` +
+      fixefs["Affiliation_centered"] * `Affiliation_centered` +
+      fixefs["Achievement_centered"] * `Achievement_centered` +
+      fixefs["Power_centered"] * `Power_centered` +
+      fixefs["Pride_cm_centered:PA_cm_centered"] * `Pride_cm_centered:PA_cm_centered` +
+      fixefs["Pride_cm_centered:Dynamics_centered"] * `Pride_cm_centered:Dynamics_centered` +
+      fixefs["Pride_cm_centered:Locus_centered"] * `Pride_cm_centered:Locus_centered` +
+      fixefs["Pride_cm_centered:Globality_centered"] * `Pride_cm_centered:Globality_centered` +
+      fixefs["Pride_cm_centered:Affiliation_centered"] * `Pride_cm_centered:Affiliation_centered` +
+      fixefs["Pride_cm_centered:Achievement_centered"] * `Pride_cm_centered:Achievement_centered` +
+      fixefs["Pride_cm_centered:Power_centered"] * `Pride_cm_centered:Power_centered`
+  )
+
+l2_preds <- l2_preds %>%
+  mutate(ID = as.character(ID))
+#Join predicted values and Level-2 residuals
+plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
+
+# Plot
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte", y = "Random Intercepts",
+       title = "Diagnose: Homoskedastizität auf Level 2")
+
+
+#Plot: Predicted Level-2 values vs. random intercepts
+ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  theme_minimal() +
+  labs(x = "Vorhergesagte Level-2-Werte (Prädiktion durch Fixeffekte)",
+       y = "Residuen (Random Intercepts)",
+       title = "Diagnose: Homoskedastizität und Linearisität auf Level 2")
+
+### Statistical test
+
+
+
+bp_test_rpe <- bptest(ranef_intercept ~ pred, data = plot_df) # Not significant
+
+
+
+
 ```
 
 
@@ -1962,12 +2169,7 @@ Linearity was assessed by plotting each predictor against the outcome variable a
 
 The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(3)`.
 
-
 On the individual level (level 2), the residuals were not normally distributed (*p* = `r level2.resids.shapirotest$p.value %>% round(3)`). No deviation from the assumption of homoscedasticity was present (*p* = `r bp_test_km$p.value[1] %>% round(3) `). 
-
-
-
-
 
 ```{r}
 #| label: tbl-hlmtable_km
@@ -2023,6 +2225,8 @@ The variance influence factor ranged from *vif~min~* = `r vif_H_min` to *vif~max
 @fig-outliers_h shows two outliers in the residuals of the model. 
 
 The marginal and conditional R-squared values were *R^2^~marginal~* = `r Rsquared_h[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_h[2] %>% round(2)`.
+
+On the individual level (level 2), the residuals were not normally distributed (*p* = `r level2.resids.shapirotest_h$p.value %>% round(3)`). No deviation from the assumption of homoscedasticity was present (*p* = `r bp_test_h$p.value[1] %>% round(3) `). 
 
 ```{r}
 #| label: tbl-hlmtable_h
@@ -2085,6 +2289,9 @@ The variance influence factor was between *vif~min~* = `r vif_RPE_min` and *vif~
 The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_rpe[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_rpe[2] %>% round(2)`.
 
  @fig-linearity_rpe shows the predictors plotted against the target variable. 
+ 
+ On the individual level (level 2), the residuals were not normally distributed (*p* = `r level2.resids.shapirotest$p.value %>% round(3)`). No deviation from the assumption of homoscedasticity was present (*p* = `r bp_test_km$p.value[1] %>% round(3) `). 
+
 
 ```{r}
 #| label: tbl-hlmtable_rpe
