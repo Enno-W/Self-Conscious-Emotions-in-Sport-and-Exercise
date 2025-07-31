@@ -881,7 +881,7 @@ H8: Negative correlation between PA parameters                and hubris
 
 ## Participants
 
-Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of N = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. After excluding participants that did not follow a training routine (*N* = `r original_n - filtered_n`), the sample consisted of *N* = `r filtered_n` recreational athletes (mean age = `r descriptives_list$Age_mean %>% round(2)` years, SD =  `r descriptives_list$Age_sd %>% round(0)`), including `r n_female` females, `r n_male` males, and `r n_diverse` identifying as diverse. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` --7.69 hours per week (SD = `r descriptives_list$WeeklyH_base_sd %>% round(2)`) with a self-rated intensity (perceived exertion) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (SD = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). The sports they engaged in included running (n = `r n_running`), triathlon (n = `r n_triathlon`), weight training (n = `r n_weight`), and other endurance sports (n = `r n_other_sports`). `r missings_percentage` % of data were missing. 
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of *N* = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. After excluding participants that did not follow a training routine (*N* = `r original_n - filtered_n`), the sample consisted of *N* = `r filtered_n` recreational athletes (*mean age* = `r descriptives_list$Age_mean %>% round(2)` years, *SD* =  `r descriptives_list$Age_sd %>% round(0)`), including `r n_female` females, `r n_male` males, and `r n_diverse` identifying as diverse. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list$WeeklyH_base_sd %>% round(2)`) with a self-rated intensity (perceived exertion) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). The sports they engaged in included running (n = `r n_running`), triathlon (n = `r n_triathlon`), weight training (n = `r n_weight`), and other endurance sports (n = `r n_other_sports`). `r missings_percentage` % of data were missing. 
 
 
 ## Measures
@@ -916,24 +916,8 @@ corr_table
 
 Correlations are presented in @tbl-corrtable and shown in @fig-corrplot.
 
-Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base)$estimate %>% round (2)`, *p*   
-`r cor.test(df_study1$Pride_base, df_study1$PA_base)$p.value %>% round (3) %>% format_p()`), weekly training duration and training distance (*Ρ* = 
-`r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$p.value %>% round (3) %>% format_p()`), the implicit achievement and affiliation motives (*Ρ* = 
-`r cor.test(df_study1$Achievement, df_study1$Affiliation)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Achievement, df_study1$Affiliation)$p.value %>% round (3) %>% format_p()`), hope for success and hope for belonging (*Ρ* = 
-`r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), hope for success and hope for control (*Ρ* = 
-`r cor.test(df_study1$Success_hope, df_study1$Control_hope)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of social rejection (*Ρ* = 
-`r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of loss of control (*Ρ* = 
-`r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$p.value %>% round (3) %>% format_p()`), fear of social rejection and negative affect (*Ρ* = 
-`r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$estimate %>% round (2)`, *p*  
-`r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$p.value %>% round (3) %>% format_p()`), and uncontrollable and internal attributions (*Ρ* = 
-`r cor.test(df_study1$Controlability_self, df_study1$Locus)$estimate %>% round (2)`, *p* 
-`r cor.test(df_study1$Controlability_self, df_study1$Locus)$p.value %>% round (3) %>% format_p()`).
+Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base)$estimate %>% round (2)`, *p*   `r cor.test(df_study1$Pride_base, df_study1$PA_base)$p.value %>% round (3) %>% format_p()`), weekly training duration and training distance (*Ρ* = `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$p.value %>% round (3) %>% format_p()`), the implicit achievement and affiliation motives (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Affiliation)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Achievement, df_study1$Affiliation)$p.value %>% round (3) %>% format_p()`), hope for success and hope for belonging (*Ρ* = 
+`r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), hope for success and hope for control (*Ρ* = `r cor.test(df_study1$Success_hope, df_study1$Control_hope)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of social rejection (*Ρ* = `r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of loss of control (*Ρ* = `r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$p.value %>% round (3) %>% format_p()`), fear of social rejection and negative affect (*Ρ* = `r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$p.value %>% round (3) %>% format_p()`), and uncontrollable and internal attributions (*Ρ* = `r cor.test(df_study1$Controlability_self, df_study1$Locus)$estimate %>% round (2)`, *p* `r cor.test(df_study1$Controlability_self, df_study1$Locus)$p.value %>% round (3) %>% format_p()`).
 
 ```{r}
 #| label: fig-corrplot
@@ -1156,7 +1140,7 @@ resid_plot_km<-ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) 
 ggplot(data = SessionKM_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
 
 #Outliers per individual
-outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, y = ID)) +
+outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, group = ID)) +
   geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
   labs(
     y = "Individual No.",
@@ -1199,6 +1183,7 @@ linearity_plot <- ggplot(facet_df, aes(x = Wert, y = SessionKM_lead1)) +
     y = "Training Distance"
   ) +
   theme_minimal(base_size = 16)
+# facet_df %>% summarise(across(everything(), ~sum(is.na(.)))) --> The warning is only because of NAs
 
 model_SessionKM_3_lmer <- lmer(
   SessionKM_lead1 ~ 
@@ -1567,7 +1552,7 @@ resid_plot_h<-ggplot(data = SessionH_residuals, aes(x = .fitted, y = .resid)) +
 ggplot(data = SessionH_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
 
 #Outliers per individual
-outl_plot_h <- ggplot(SessionH_residuals, aes(x = .resid, y = ID)) +
+outl_plot_h <- ggplot(SessionH_residuals, aes(x = .resid, group = ID)) +
   geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
   labs(
     y = "Individual No.",
@@ -1747,7 +1732,6 @@ model_SessionRPE_3 <- lme(
   method = "REML"
 )
 ## Does modelling autocorrelation improve the model? 
-nlme::Variogram(model_SessionRPE_3)
 
 model_SessionRPE_4 <- lme(
   fixed = SessionRPE_lead1 ~ 
@@ -1801,32 +1785,14 @@ Rsquared_rpe<-r.squaredGLMM(model_SessionRPE_3)
 
 variogram_km  <-nlme::Variogram(model_SessionKM_3, 
                                 form = ~ Time | ID)
-dput(variogram_km)
 
 variogram_h   <-nlme::Variogram(model_SessionH_3, 
                                 form = ~ Time | ID)
-dput(variogram_h)
 
 variogram_rpe <-nlme::Variogram(model_SessionRPE_3, 
                                 form = ~ Time | ID)
-dput(variogram_rpe)
 
-variogram_km <-structure(list(variog = c(1.15991898058474, 0.447036227324394, 
-0.684989396378706, 0.217789011277918), dist = c(1, 2, 3, 4), 
-    n.pairs = c(37L, 26L, 16L, 7L)), row.names = c(NA, 4L), class = c("Variogram", 
-"data.frame"), collapse = TRUE)
-
-variogram_h <- structure(list(variog = c(0.908464259718384, 1.13370321451414, 
-0.420129132293349, 0.844873308138978), dist = c(1, 2, 3, 4), 
-    n.pairs = c(53L, 37L, 23L, 10L)), row.names = c(NA, 4L), class = c("Variogram", 
-"data.frame"), collapse = TRUE)
-
-variogram_rpe<- structure(list(variog = c(0.836742906186201, 1.02148833359404, 
-0.632955549381834, 0.420272035306193), dist = c(1, 2, 3, 4), 
-    n.pairs = c(54L, 38L, 24L, 11L)), row.names = c(NA, 4L), class = c("Variogram", 
-"data.frame"), collapse = TRUE)
-
-ggplot(variogram_km, aes(x = dist, y = variog)) +
+variogram_km_graph <-ggplot(variogram_km, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
@@ -1836,7 +1802,7 @@ ggplot(variogram_km, aes(x = dist, y = variog)) +
   ) +
   theme_minimal()
 
-ggplot(variogram_h, aes(x = dist, y = variog)) +
+variogram_h_graph <- ggplot(variogram_h, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
@@ -1846,7 +1812,7 @@ ggplot(variogram_h, aes(x = dist, y = variog)) +
   ) +
   theme_minimal()
 
-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
+variogram_rpe_graph <-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
@@ -1996,16 +1962,13 @@ model_SessionRPE_3_lmer <- lmer(
 vif_RPE_min<-vif(model_SessionRPE_3_lmer) %>% min() %>% round (2)
 
 vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round (2)
-
 ###### Tests of normality ###############################################
 
 ntest_shapiro_rpe <-shapiro.test(SessionRPE_residuals $.resid)  
 ntest_ks_rpe <-ks.test(SessionRPE_residuals  $.resid, "pnorm", mean(SessionRPE_residuals  $.resid), sd(SessionRPE_residuals  $.resid), exact = T)
 ntest_ks_rpe_no_logtransform <-ks.test(SessionRPE_residuals_no_logtransform  $.resid, "pnorm", mean(SessionRPE_residuals_no_logtransform  $.resid), sd(SessionRPE_residuals_no_logtransform  $.resid), exact = T)
 
-
 ##### Visualisation of homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
-
 resid_plot_rpe<-ggplot(data = SessionRPE_residuals, aes(x = .fitted, y = .resid)) +
   geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -2040,7 +2003,7 @@ resid_plot_rpe_no_logtransform<-ggplot(data = SessionRPE_residuals_no_logtransfo
 ggplot(data = SessionRPE_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
 
 #Outliers per individual
-outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, y = ID)) +
+outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, group = ID)) +
   geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
   labs(
     y = "Individual No.",
@@ -2138,7 +2101,6 @@ ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
   labs(x = "Vorhergesagte Level-2-Werte", y = "Random Intercepts",
        title = "Diagnose: Homoskedastizität auf Level 2")
 
-
 #Plot: Predicted Level-2 values vs. random intercepts
 ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
   geom_point() +
@@ -2149,16 +2111,9 @@ ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
        title = "Diagnose: Homoskedastizität und Linearisität auf Level 2")
 
 ### Statistical test
-
-
-
 bp_test_rpe <- bptest(ranef_intercept ~ pred, data = plot_df) # Not significant
 
-
-
-
 ```
-
 
 ## Analysis
 
@@ -2192,7 +2147,7 @@ In these models, we used interaction terms of pride with positive affect, causal
 The intraclass correlation coefficient was *ICC* = `r icc_km[1]$ICC_adjusted %>% round (2)`. 
 Model 3 included meaningful predictors and the lowest log-likelihood, it also fit significantly better than the same model without a correlation matrix *p*  `r corAR_test_km$"p-value"[2] %>% format_p()`. Thus, Model 3 was selected for further analysis of statistical assumptions and the discussion. 
 
-The residuals were normally distributed (*p*  `r round(ntest_ks_km $p.value, 2)` ). @fig-sessionkm_assumptions shows a QQ-plot and scatterplot of the residuals. Here, the residuals are concentrated in the left, indicating a slight deviation from the assumption of homoscedasticity. 
+The residuals were normally distributed (*p*  `r ntest_shapiro_km  $p.value %>% format_p()` ). @fig-sessionkm_assumptions shows a QQ-plot and scatterplot of the residuals. Here, the residuals are concentrated in the left, indicating a slight deviation from the assumption of homoscedasticity. 
 
 The variance influence factor ranged from *vif~min~* = `r vif_KM_min` to *vif~max~* = `r vif_KM_max`. 
 
@@ -2227,7 +2182,7 @@ b_prideXpower_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Power_ce
 p_prideXpower_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Power_centered", "p-value"]
 ```
 Several interaction terms emerged as significant predictors: 
-The interactions between pride and positive affect (*b* = `r b_prideXpa_km %>% round(3)`, *p* `r b_prideXpa_km %>% format_p()`), and achievement motive (*b* = `r b_prideXachievement_km %>% round(3)`, *p*  `r b_prideXachievement_km %>% format_p()`) were positive, meaning that the effect of pride on the training distance in the *next* session is stronger when there is a high achievement motive or a high positive affect (in the previous session). 
+The interactions between pride and positive affect (*b* = `r b_prideXpa_km %>% round(3)`, *p* `r b_prideXpa_km %>% format_p()`), and achievement motive (*b* = `r b_prideXachievement_km %>% round(3)`, *p*  `r b_prideXachievement_km %>% format_p()`) were positive, meaning that the effect of pride on the training distance in the *next* session is stronger when there is a high achievement motive or a high positive affect (in the previous session).
 The interaction terms between pride and globality (*b* = `r b_prideXpa_km %>% round(3)`, *p* `r b_prideXpa_km %>% format_p()`), the affiliation motive (*b* = `r b_prideXaffiliation_km %>% round(3)`, *p* = `r b_prideXaffiliation_km %>% format_p()`) and the power motive (*b* = `r b_prideXpower_km %>% round(3)`, *p*  `r b_prideXpower_km %>% format_p()`) were negative: When globality, affiliation or power are high, pride reduces the running distance in the next session. 
 
 ```{r}
@@ -2246,6 +2201,7 @@ The interaction terms between pride and globality (*b* = `r b_prideXpa_km %>% ro
 #| apa-note: None of the predictors show a strictly linear association with the target variable. 
 #| fig-height: 10
 #| fig-width: 10
+#| warning: false
 linearity_plot
 ```
 
@@ -2267,7 +2223,7 @@ The ICC was *ICC* = `r icc_h$ICC_adjusted[1] %>% round(3)`.
 
 No model showed meaningful predictors of session duration. A correlation matrix only slightly and non-significantly improved model fit (*p*  `r corAR_test_h$"p-value"[2] %>% format_p()`). The model with the correlation matrix (Model 3) was retained for further examination. 
 
-The residuals were normally distributed in a Kolmogorov-Smirnov-Test (*p*  `r round(ntest_ks_h $p.value, 2)` ), but not in a Shapiro-Wilk-test (*p*  `r ntest_shapiro_h$p.value %>% format_p()`). A slight deviation from the normal distribution of residuals and the assumption of homoscedasticity is apparent in @fig-sessionh_assumptions. 
+The residuals were normally distributed in a Kolmogorov-Smirnov-Test (*p*  `r ntest_ks_h $p.value %>% format_p()` ), but not in a Shapiro-Wilk-test (*p*  `r ntest_shapiro_h$p.value %>% format_p()`). A slight deviation from the normal distribution of residuals and the assumption of homoscedasticity is apparent in @fig-sessionh_assumptions. 
 
 The variance influence factor ranged from *vif~min~* = `r vif_H_min` to *vif~max~* = `r vif_H_max`. 
 
@@ -2286,6 +2242,8 @@ On the individual level (level 2), the residuals were not normally distributed (
 hlmtable_h
 
 ```
+
+No predictors predicted session time significantly. 
 
 ```{r}
 #| label: fig-sessionh_assumptions
@@ -2313,6 +2271,7 @@ outl_plot_h
 #| apa-note: This is the note below the figure.
 #| fig-height: 10
 #| fig-width: 10
+#| warning: false
 linearity_plot_h
   
 ```
@@ -2329,11 +2288,11 @@ Correlation matrix
 
 ## Session Rate of Perceived Exhaustion
 
-The regression coefficients are shown in @tbl-hlmtable_rpe.  The third model with all predictors shows the lowest AIC and log likelihood. A correlation matrix did not result in a better fit ( *p*  `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure (Model 3). It shows the lowest AIC and log likelihood and was tested for statistical assumptions and model quality.
+The regression coefficients are shown in @tbl-hlmtable_rpe.  The third model with all predictors shows the lowest AIC and log likelihood. A correlation matrix did not result in a better fit ( *p*  `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure. It shows the lowest AIC and log likelihood and was tested for statistical assumptions and model quality.
 
 A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
 
-The residuals were normally distributed in a Kolmogorov-Smirnov test (*p*  `r round(ntest_ks_rpe $p.value, 2)` ). This test is less sensitivie to small deviations from the norm \[LIT\]. @fig-sessionrpe_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data.
+The residuals were normally distributed in a Kolmogorov-Smirnov test (*p*  `r ntest_ks_rpe $p.value %>% format_p()` ),  but not in a Shapiro-Wilk-test (*p*  `r ntest_shapiro_rpe$p.value %>% format_p()`). @fig-sessionrpe_assumptions shows the deviation from the normal distribution in a QQ-Plot along with the distribution of residuals. The linear patterns that emerge in the residuals are a result of the discrete values in the session RPE data.
 
 The variance influence factor was between *vif~min~* = `r vif_RPE_min` and *vif~max~* = `r vif_RPE_max`.
 
@@ -2349,7 +2308,29 @@ The marginal and conditional R-squared values, representing the portion of varia
 #| tbl-cap: Hierarchical Linear Model Coefficients Predicting Session Rate of Perceived Exhaustion 
 #| apa-note: Time varying predictors Pride and Positive Affect were cluster-mean-centered, fixed predictors were grand mean centered. 
 hlmtable_rpe
+
+
+# Reporting specific parameters with p-values:
+
+summary_model_SessionRPE_4 <-summary(model_SessionRPE_4)
+b_dynamics_rpe <- summary_model_SessionRPE_4$tTable["Dynamics_centered", "Value"]
+p_dynamics_rpe <- summary_model_SessionRPE_4$tTable["Dynamics_centered", "p-value"]
+b_prideXpa_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:PA_cm_centered", "Value"]
+p_prideXpa_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:PA_cm_centered", "p-value"]
+b_prideXlocus_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Locus_centered", "Value"]
+p_prideXlocus_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Locus_centered", "p-value"]
+b_prideXglobality_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Globality_centered", "Value"]
+p_prideXglobality_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Globality_centered", "p-value"]
+b_prideXachievement_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Achievement_centered", "Value"]
+p_prideXachievement_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Achievement_centered", "p-value"]
+b_prideXaffiliation_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Affiliation_centered", "Value"]
+p_prideXaffiliation_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Affiliation_centered", "p-value"]
+b_prideXpower_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Power_centered", "Value"]
+p_prideXpower_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Power_centered", "p-value"]
 ```
+
+Several interaction terms emerged as significant predictors: 
+When a person had a tendency to more stable attributions, session RPE was reduced (*b* = `r b_dynamics_rpe %>% round(3)`, *p* `r p_dynamics_rpe %>% format_p()`). Pride predicted the session rate of perceived exhaustion negatively if positive affect in the last session was high (*b* = `r b_prideXpa_rpe %>% round(3)`, *p*  `r p_prideXpa_rpe %>% format_p()`), if people had a more external attribution style (*b* = `r b_prideXlocus_rpe %>% round(3)`, *p*  `r p_prideXlocus_rpe %>% format_p()`), and if the affiliation motive (*b* = `r b_prideXaffiliation_rpe %>% round(3)`, *p* = `r b_prideXaffiliation_rpe %>% format_p()`) or power motive (*b* = `r b_prideXpower_rpe %>% round(3)`, *p*  `r b_prideXpower_rpe %>% format_p()`) were high. If the achivement motive was high, higher pride also predicted a higher RPE (*b* = `r b_prideXachievement_rpe %>% round(3)`, *p*  `r b_prideXachievement_rpe %>% format_p()`).
 
 ```{r}
 #| label: fig-sessionrpe_assumptions
@@ -2367,6 +2348,7 @@ hlmtable_rpe
 #| apa-note: This is the note below the figure.
 #| fig-height: 10
 #| fig-width: 10
+#| warning: false
 linearity_plot
   
 ```
