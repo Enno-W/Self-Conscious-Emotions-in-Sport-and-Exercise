@@ -31,7 +31,8 @@ abstract: "Self-conscious emotions play a crucial role in sports and exercise by
 keywords: [keyword1, keyword2, keyword3]
 bibliography: bibliography.bib
 format:
-  apaquarto-html: default
+  apaquarto-html:
+    self-contained: true
   apaquarto-docx: default
   #apaquarto-pdf:
     #documentmode: man
