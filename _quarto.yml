@@ -1,3 +1,7 @@
 project:
   type: website
   output-dir: docs
+
+website:
+  title: "Self-Conscious Emotions"
+  site-url: https://enno-w.github.io/Self-Conscious-Emotions-in-Sport-and-Exercise/
