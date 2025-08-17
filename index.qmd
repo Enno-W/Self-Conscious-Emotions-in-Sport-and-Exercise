@@ -2,9 +2,9 @@
 title: "Self-Conscious Emotions in Sport and Exercise: Relationships of Implicit and Explicit Processes of Authentic and Hubristic Pride and Physical Activity"
 shorttitle: "Self-Conscious Emotions in Sport"
 author:
-  - name: Sascha Leisterer
+  - name: Sascha Leisterer-Härtig
     corresponding: true
-    orcid: 0000-0000-0000-0001
+    orcid: 0000-0002-0493-8464
     email: sascha.leisterer@uni-leipzig.de
     affiliations:
       - name: Leipzig University
@@ -13,7 +13,17 @@ author:
         city: Leipzig
         region: Saxony
         country: Germany
-        postal-code:
+  - name: Enno Winkler
+    corresponding: false
+    orcid:  0009-0008-0665-3447
+    email: enno.winkler@spb-ew.de
+    affiliations:
+      - name: Leipzig University
+        department: Department of Sport Science
+        address: Jahnallee 59
+        city: Leipzig
+        region: Saxony
+        country: Germany
 author-note:
   status-changes: 
     affiliation-change: ~
@@ -33,12 +43,14 @@ bibliography: bibliography.bib
 format:
   apaquarto-html:
     self-contained: true
-  apaquarto-docx: default
+  apaquarto-docx:
+    numbered-lines: true
   #apaquarto-pdf:
     #documentmode: man
 floatsintext: false
 comments:
   hypothesis: true
+suppress-keywords: true #https://wjschne.github.io/apaquarto/options.html#suppress-elements
 ---
 
 ```{r setup}
@@ -494,6 +506,12 @@ sum(is.na(df_study1))
 df_study1<-df_study1 %>% filter(Programme == 1|is.na(Programme))
 filtered_n <-nrow(df_study1)
 
+### z-standardisation of implicit motives ###
+
+df_study1$Affiliation<-df_study1$Affiliation %>% scale()
+df_study1$Achievement<-df_study1$Achievement %>% scale()
+df_study1$Power<-df_study1$Power %>% scale()
+
 
 # ### Remove Participants with too many NAs
 # df_study1$missings_amount <- rowSums(is.na(df_study1))
@@ -513,7 +531,7 @@ missings_amount <- df_study1 %>% select(-"Programme" ,-"Age"    ,-   "Gender" , 
 
 
 #Calculating the percentage of missing data
-missings_percentage <-round((missings_amount / data_amount) * 100, 0)
+missings_percentage_study1 <-round((missings_amount / data_amount) * 100, 0)
 
 
 ####rename the gender ####
@@ -524,6 +542,7 @@ df_study1 <- df_study1 %>%
 n_male<-nrow(df_study1 %>% filter(Gender == "male"))
 n_female<-nrow(df_study1 %>% filter(Gender == "female"))
 n_diverse<-nrow(df_study1 %>% filter(Gender == "diverse"))
+n_gender_NA <- is.na(df_study1$Gender) %>% sum()
 
 
 patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
@@ -555,10 +574,10 @@ sum(is.na(df_study2))
 df_study2[df_study2==-99]<-NA
 sum(is.na(df_study2))
 
-original_data_amount <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave"))%>%  # Select (where colums are numeric)
+original_data_amount_study2 <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave"))%>%  # Select (where colums are numeric)
   summarise(across(everything(), ~ sum(!is.na(.)))) %>% sum() # Apply summary functions to columns to create a new table of summary statistics. Summary functions take vectors as input and return one value, ~sum of values that are not NA. !! The "." is a placeholder for all the things that are passed throught the function !is.na()
-original_data_missings_amount <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
-missings_percentage <-round((original_data_missings_amount / original_data_amount) * 100, 0)
+original_data_missings_amount_study2 <- df_study2 %>% select(- "ID", -"Programme" ,-"Age"    ,-   "Gender" ,  -"SportCode", -ends_with("_ave")) %>% summarise(across(everything(), ~ sum(is.na(.)))) %>% sum()
+missings_percentage_study2 <-round((original_data_missings_amount_study2 / original_data_amount_study2) * 100, 0)
 
 ### Convert an implausible value from 2 to 120 minutes (= 2 hours) - data entry mistake
 
@@ -607,18 +626,8 @@ df_study2$Speed_6_class <- ifelse(df_study2$Speed_6 < 5, "Swimming",
 
 descriptives_list_study2 <- mean_sd_median_min_max(df_study2)
 
-
-#### sport specific z-scaling ####
-
-##For baseline (According to sport Code)
-df_study2 <- df_study2 %>%
-  group_by(SportCode) %>%
-  mutate(WeeklyKM_base = as.numeric(scale(WeeklyKM_base))) %>%
-  ungroup()
-
-### For repeated measures ##
-
-# z-Standardising speed
+### Z-Standardising for For repeated measures ##
+# z-Standardising weekly KM by speed
 for (i in 1:6) {
   speed_var <- paste0("Speed_", i)
   class_var <- paste0("Speed_", i, "_class")
@@ -882,7 +891,7 @@ H8: Negative correlation between PA parameters                and hubris
 
 ## Participants
 
-Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training log). A sample size calculation using G\*Power29 for testing one-sided point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of *N* = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. After excluding participants that did not follow a training routine (*N* = `r original_n - filtered_n`), the sample consisted of *N* = `r filtered_n` recreational athletes (*mean age* = `r descriptives_list$Age_mean %>% round(2)` years, *SD* =  `r descriptives_list$Age_sd %>% round(0)`), including `r n_female` females, `r n_male` males, and `r n_diverse` identifying as diverse. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list$WeeklyH_base_sd %>% round(2)`) with a self-rated intensity (perceived exertion) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). The sports they engaged in included running (n = `r n_running`), triathlon (n = `r n_triathlon`), weight training (n = `r n_weight`), and other endurance sports (n = `r n_other_sports`). `r missings_percentage` % of data were missing. 
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training routine). A sample size calculation performed before data collection using G\*Power [@Faul2007]  for testing one-tailed point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of *N* = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. Participants who reported not following a workout routine were excluded. The resulting final sample consisted of *N* = `r filtered_n` recreational athletes who had a mean age of `r descriptives_list$Age_mean %>% round(2)` years (*SD* =  `r descriptives_list$Age_sd %>% round(2)`; range = `r descriptives_list$Age_min`–`r descriptives_list$Age_max`), including `r n_female` females, `r n_male` males, `r n_diverse` participants who identified as diverse, and `r numbers_to_words(n_gender_NA, cap=T)` who did not report their gender. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list$WeeklyH_base_min`–`r descriptives_list$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). Sports included running (*n* = `r n_running`), triathlon (*n* = `r n_triathlon`), weight training (*n* = `r n_weight`), and other endurance sports (*n* = `r n_other_sports`). Missing values amounted to `r missings_percentage_study1`% of all data.
 
 
 ## Measures
@@ -896,13 +905,15 @@ Participants were adults with specific goals (e.g., running a marathon, competin
 ## Analysis
 
 <!-- Hier noch baseline vs. session klar trennen -->
-First, implicit motives for achievement, affiliation, and power motives were z-standardized, motive components were gender balanced t-standardized and the entire data was checked for normal distribution. Applying the Shapiro-Wilk test, session training distance (*p* `r vars_not_normal_with_p_values$WeeklyKM_base`), session training duration (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived rate of exhaustion (*p* `r vars_not_normal_with_p_values$WeeklyH_base`) as well as fear of rejection (*p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. We then calculated the speed from the time and distance values for each session, and found a great variability. The speed in a session ranged from `r min(c(descriptives_list_study2$Speed_1_min, descriptives_list_study2$Speed_2_min, descriptives_list_study2$Speed_3_min, descriptives_list_study2$Speed_4_min, descriptives_list_study2$Speed_5_min, descriptives_list_study2$Speed_6_min), na.rm = TRUE) %>% round(0)` to `r max(c(descriptives_list_study2$Speed_1_max, descriptives_list_study2$Speed_2_max, descriptives_list_study2$Speed_3_max, descriptives_list_study2$Speed_4_max, descriptives_list_study2$Speed_5_max, descriptives_list_study2$Speed_6_max), na.rm = TRUE) %>% round(0)` kilometers per hour. As a consequence, we separated the data into three categories that fit with common speed of swimming, running, and cycling. If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". We then z-standardised the session distance within these groups. After this, running distance was normally distributed (*p*  `r round(SessionKM_shapirotest_after_z$p.value,3)`) Second, descriptive statistics were calculated. Third, according to the small sample size and normally distributed variables, Spearman rank correlations were calculated. For the analysis, the programming language R [@rlanguage2024] was used.
+First, implicit motives for achievement, affiliation, and power motives were *z*-standardized. The gender-balanced T-scores for the motive components according to >>>>>>> MC Clelland'S scoring procedure?? <<<<<<<<.  were calculated. The entire data was checked for normal distribution. Applying the Shapiro-Wilk test, the weekly training distance  (*W* = `r shapiro.test(df_study1$WeeklyKM_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyKM_base`), weekly training duration (*W* = `r shapiro.test(df_study1$WeeklyH_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived exhaustion (*W* = `r shapiro.test(df_study1$WeeklyRPE_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyRPE_base`) as well as fear of rejection (*W* = `r shapiro.test(df_study1$Rejection_fear)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$Rejection_fear`) were not normally distributed. Second, descriptive statistics were calculated. Third, due to the small sample size and normality violations, Spearman rank correlations were calculated. For the analysis, Version `r R.Version()$major`.`r R.Version()$minor` of the programming language R [@rlanguage2024] was used.
 
 ## Results
 
+### Descriptive Statistics
+
 ```{r}
 #| label: tbl-stat
-#| tbl-cap: Descriptive statistics table
+#| tbl-cap: "Descriptive statistics: Mean values with standard deviation and skewness kurtosis for all investigated variables"
 #| apa-note: The p-value results from Shapiro-Wilk-tests of normality. 
 table_stat
 ```
@@ -915,10 +926,21 @@ corr_table
 ```
 @tbl-stat  presents descriptive statistics, including mean, standard deviation, skewness, and kurtosis. The sample represents medium authentic pride and medium positive affect, low hubristic pride and low negative affect. Additionally, the sample shows a slightly stronger implicit affiliation motive but regular motive components in all 3 implicit motives. Further, the sample applies more internal, variable, and less uncontrollable attribution styles.  @fig-violin visualises the distibution of these variables. 
 
++++Please insert “@tbl-stat Descriptive statistics: Mean values with standard deviation and skewness and kurtosis for all investigated variables” nearby.+++
+
++++Please insert “@fig-violin Descriptive statistics: Mean values with standard deviation and skewness and kurtosis for all investigated variables” nearby.+++
+
+### Hypothesis testing
+
 Correlations are presented in @tbl-corrtable and shown in @fig-corrplot.
 
 Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base)$estimate %>% round (2)`, *p*   `r cor.test(df_study1$Pride_base, df_study1$PA_base)$p.value %>% round (3) %>% format_p()`), weekly training duration and training distance (*Ρ* = `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base)$p.value %>% round (3) %>% format_p()`), the implicit achievement and affiliation motives (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Affiliation)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Achievement, df_study1$Affiliation)$p.value %>% round (3) %>% format_p()`), hope for success and hope for belonging (*Ρ* = 
 `r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), hope for success and hope for control (*Ρ* = `r cor.test(df_study1$Success_hope, df_study1$Control_hope)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Success_hope, df_study1$Belonging_hope)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of social rejection (*Ρ* = `r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Failure_fear, df_study1$Rejection_fear)$p.value %>% round (3) %>% format_p()`), fear of failure and fear of loss of control (*Ρ* = `r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Failure_fear, df_study1$LossControl_fear)$p.value %>% round (3) %>% format_p()`), fear of social rejection and negative affect (*Ρ* = `r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$estimate %>% round (2)`, *p*  `r cor.test(df_study1$Rejection_fear, df_study1$NA_base)$p.value %>% round (3) %>% format_p()`), and uncontrollable and internal attributions (*Ρ* = `r cor.test(df_study1$Controlability_self, df_study1$Locus)$estimate %>% round (2)`, *p* `r cor.test(df_study1$Controlability_self, df_study1$Locus)$p.value %>% round (3) %>% format_p()`).
+
++++Please insert “@tbl-corrtable. Correlation matrix: Spearman Rho (Ρ) coefficients indicate correlations of investigated and significance is depicted as p-value” nearby.+++
+
+
++++Please insert “@fig-corrplot. Correlation Plot showing Spearman Rho coefficients between investigated variables.” nearby.+++
 
 ```{r}
 #| label: fig-corrplot
@@ -2118,13 +2140,17 @@ bp_test_rpe <- bptest(ranef_intercept ~ pred, data = plot_df) # Not significant
 
 ## Analysis
 
-We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. Subsequent analyses were performed using the R language [@rlanguage2024]. 
- `r missings_percentage` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. 
+We excluded participants manually if they reported data on less than two training sessions, if they did not participate in a structured training programme, or if they were neither runners nor triathletes. 
+ `r missings_percentage_study2` of data were missings. Since most of the incomplete date was due to dropouts, we decided against multiple imputation, following the reccomendations of \[Lit\]. 
+ 
+ We calculated the speed from the time and distance values for each session, and found that the speed in a session ranged from `r min(c(descriptives_list_study2$Speed_1_min, descriptives_list_study2$Speed_2_min, descriptives_list_study2$Speed_3_min, descriptives_list_study2$Speed_4_min, descriptives_list_study2$Speed_5_min, descriptives_list_study2$Speed_6_min), na.rm = TRUE) %>% round(0)` to `r max(c(descriptives_list_study2$Speed_1_max, descriptives_list_study2$Speed_2_max, descriptives_list_study2$Speed_3_max, descriptives_list_study2$Speed_4_max, descriptives_list_study2$Speed_5_max, descriptives_list_study2$Speed_6_max), na.rm = TRUE) %>% round(0)` kilometers per hour. Thus, we separated the data into three categories: If the speed was less than five kilometers per hour, the session was regarded as "swimming", less than 20 kilometers per hour as "running", and more than 20 kilometers per hour as "cycling". These cutoffs reflect typical training speeds for each sport. We then z-standardized the session distance within these groups to make the distances comparable between different sports.  
+ 
+ 
 Since the questionnaires were sent out in weekly intervals, we expected autocorrelation between measurement points. Through inspecting variograms, we assessed the correlation structure between measurement points. The results suggested that autoregressive noise was present: The semivariance changed substantially with distance between observations. Thus, we included an autocorrelation structure of order 1 (AR1) in the models.
 
 Time was not included as predictor, since we did not expect a trend over time. The time-varying predictors pride and positive affect were group-mean centered, and the stable predictors attribution style (globality, dynamics, locus) and implicit motives (achievement, affiliation, power) were grand mean centered. This disentangles the between-person-effects from the within-person-effects, in line with recommendations of @Wang2015: The authors emphasize that a within-person effect can be present regardless of the between-person-effect, and vice versa. 
 To illustrate this, it is possible that within a person, less pride after a run predicts a greater running distance in the next session. At the same time, people who are less proud on average do not necessarily run more.
-Lastly, we z-standardised all predictors for easier interpretation. 
+Lastly, we z-standardized all predictors for easier interpretation. 
 
 The results for the hierarchical linear models are presented separately for each the dependent variables of this study: Session distance, session duration and rate of perceived exhaustion. We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables. The predictors were added in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives. We then decided on the appropriate model based on fit indices and explanatory power, and then examined the model quality, checking for normal distribution of residuals, homoscedasticity (constant variance of residuals), absence of multicollinearity, linearity and outliers. We also assessed if a correlation matrix improved the model fit.
 
