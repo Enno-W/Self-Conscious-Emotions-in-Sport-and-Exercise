@@ -389,17 +389,7 @@ get_descriptive_table <- function(df, language = "German") {
     stat.desc(basic = FALSE, norm = TRUE) %>% 
     t() %>% 
     as.data.frame() %>% 
-    select(-var, -coef.var, -SE.mean, -kurt.2SE, -normtest.W, -skew.2SE)
-  
-  # Adjust normtest.p formatting
-  df_stat <- df_stat %>%
-    mutate(
-      normtest.p = ifelse(
-        normtest.p < 0.001,
-        "< .001",
-        as.character(round(normtest.p, 3))
-      )
-    )
+    select(-var, -coef.var, -SE.mean, -kurt.2SE, -normtest.W, -skew.2SE, -normtest.p)
   
   # Round all numeric values
   df_stat <- df_stat %>%
@@ -418,9 +408,8 @@ get_descriptive_table <- function(df, language = "German") {
         Schiefe = skewness,
         Exzess = kurtosis,
         Mittelwert = mean,
-        "95% KI" = CI.mean.0.95,
-        "SD" = std.dev,
-        "p-Wert " = normtest.p
+        "95% KI half-width" = CI.mean.0.95,
+        "SD" = std.dev
       )
   } else if (language == "English") {
     df_stat <- df_stat %>% 
@@ -430,8 +419,7 @@ get_descriptive_table <- function(df, language = "German") {
         Kurtosis = kurtosis,
         Mean = mean,
         "95% CI" = CI.mean.0.95,
-        "SD" = std.dev,
-        "p-Value" = normtest.p
+        "SD" = std.dev
       )
   } else {
     stop("Unsupported language. Please choose either 'German' or 'English'.")
@@ -506,11 +494,7 @@ sum(is.na(df_study1))
 df_study1<-df_study1 %>% filter(Programme == 1|is.na(Programme))
 filtered_n <-nrow(df_study1)
 
-### z-standardisation of implicit motives ###
 
-df_study1$Affiliation<-df_study1$Affiliation %>% scale()
-df_study1$Achievement<-df_study1$Achievement %>% scale()
-df_study1$Power<-df_study1$Power %>% scale()
 
 
 # ### Remove Participants with too many NAs
@@ -717,37 +701,12 @@ SessionKM_shapirotest_after_z<-shapiro.test(df_study2$WeeklyKM_base)
 #| include: false
 
 ## Study 1
-
-#### correlation table ####
+#### Skewness, Kurtosis and min-max range table###############################################
 pride_variables<-c("Pride_base", "Hubris_base")
 base_training_and_affect_variables<-df_study1 %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
 motive_variables <- c("Achievement", "Affiliation", "Power", df_study1 %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
 attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
-corr_table<-df_study1[,correlation_variables] %>% 
-  generate_correlation_table2(method= "spearman",c(
-    "1. Pride", 
-    "2. Hubris", 
-    "3. Session Training Distance", 
-    "4. Session Training Hours", 
-    "5. Session Training RPE", 
-    "6. Positive Affect", 
-    "7. Negative Affect", 
-    "8. Achievement", 
-    "9. Affiliation", 
-    "10. Power", 
-    "11. Hope for Success", 
-    "12. Fear of Failure", 
-    "13. Hope for Belonging",
-    "14. Fear of Rejection",
-    "15. Hope for Control",
-    "16. Fear of Loss of Control",
-    "17. Locus",
-    "18. Dynamics",
-    "19. Controllability"
-  ))
-
-#### Skewness, Kurtosis and min-max range table###############################################
 
 df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "English")
 
@@ -775,6 +734,36 @@ df_stat$Variable <- c(
 
 table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
  
+### z-standardisation of implicit motives ###
+
+df_study1$Affiliation<-df_study1$Affiliation %>% scale()
+df_study1$Achievement<-df_study1$Achievement %>% scale()
+df_study1$Power<-df_study1$Power %>% scale()
+
+#### correlation table ####
+corr_table<-df_study1[,correlation_variables] %>% 
+  generate_correlation_table2(method= "spearman",c(
+    "1. Pride", 
+    "2. Hubris", 
+    "3. Session Training Distance", 
+    "4. Session Training Hours", 
+    "5. Session Training RPE", 
+    "6. Positive Affect", 
+    "7. Negative Affect", 
+    "8. Achievement", 
+    "9. Affiliation", 
+    "10. Power", 
+    "11. Hope for Success", 
+    "12. Fear of Failure", 
+    "13. Hope for Belonging",
+    "14. Fear of Rejection",
+    "15. Hope for Control",
+    "16. Fear of Loss of Control",
+    "17. Locus",
+    "18. Dynamics",
+    "19. Controllability"
+  ))
+
 
 ```
 
@@ -914,7 +903,7 @@ First, implicit motives for achievement, affiliation, and power motives were *z*
 ```{r}
 #| label: tbl-stat
 #| tbl-cap: "Descriptive statistics: Mean values with standard deviation and skewness kurtosis for all investigated variables"
-#| apa-note: The p-value results from Shapiro-Wilk-tests of normality. 
+#| apa-note: '*N* = 32'
 table_stat
 ```
 
@@ -924,7 +913,7 @@ table_stat
 #| apa-note: "* p < .05, ** p < .01, *** p < .001."
 corr_table
 ```
-@tbl-stat  presents descriptive statistics, including mean, standard deviation, skewness, and kurtosis. The sample represents medium authentic pride and medium positive affect, low hubristic pride and low negative affect. Additionally, the sample shows a slightly stronger implicit affiliation motive but regular motive components in all 3 implicit motives. Further, the sample applies more internal, variable, and less uncontrollable attribution styles.  @fig-violin visualises the distibution of these variables. 
+@tbl-stat  presents descriptive statistics, including mean, standard deviation, skewness, and kurtosis. The sample represents medium authentic pride and medium positive affect, low hubristic pride and low negative affect. Additionally, the sample shows a slightly stronger implicit affiliation motive but regular motive components in all 3 implicit motives. Further, the sample intended to report more internal, variable, and less uncontrollable attribution styles.  @fig-violin visualizes the distribution of these variables. 
 
 +++Please insert “@tbl-stat Descriptive statistics: Mean values with standard deviation and skewness and kurtosis for all investigated variables” nearby.+++
 
@@ -953,7 +942,7 @@ heatmap
 
 ```{r}
 #| label: fig-violin
-#| fig-cap: Violin Plot with boxplots
+#| fig-cap: Violin Plot with embedded boxplots for all variables
 #| apa-note: The "X" represents the mean. Outliers are shown as grey diamonds. 
 #| fig-height: 15
 #| fig-width: 10
