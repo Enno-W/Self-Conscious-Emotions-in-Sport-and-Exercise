@@ -37,8 +37,8 @@ author-note:
     gratitude: ~
     authorship-agreements: ~
 link-citations: true
-abstract: "Self-conscious emotions play a crucial role in sports and exercise by reflecting self-related goal achievements. Traditionally, these emotions are explained through explicit attributional processes. However, implicit processes that influence self-related goal orientation are often overlooked."
-keywords: [keyword1, keyword2, keyword3]
+abstract: "Self-conscious emotions play a crucial role in sports and exercise by reflecting self-related goal achievements. Traditionally, these emotions are explained through explicit attributional processes. However, implicit processes that influence self-related goal orientation are often overlooked. This research covers two studies to investigate implicit determinants of pride in sports and exercising. First, a cross-sectional correlation study reveals a negative correlation of the implicit affiliation motive with authentic pride in ambitious recreational athletes. Second, a longitudinal study that shows that pride predicted a lower perceived exhaustion if the implicit the affiliation motive was high, and a higher perceived exertion if the achievement motive was high. Therefore, considering implicit processes in recreational athletes as potential determinants of self-conscious emotions appears to be more significant than previously thought. "
+keywords: [Affect, Causal Attribution, Exercise Behavior, Recreational Athletes, Well-Being]
 bibliography: bibliography.bib
 format:
   apaquarto-html:
@@ -386,7 +386,7 @@ get_descriptive_table <- function(df, language = "German") {
   # Compute statistics
   df_stat <- df %>% 
     stat.desc(basic = FALSE, norm = TRUE) %>% 
-    t() %>% 
+    t() %>% # transpose, so that variables are in rows
     as.data.frame() %>% 
     select(-var, -coef.var, -SE.mean, -kurt.2SE, -normtest.W, -skew.2SE)
   
@@ -495,7 +495,7 @@ filtered_n_s1 <-nrow(df_study1)
 # ### Remove Participants with too many NAs
 # df_study1$missings_amount <- rowSums(is.na(df_study1))
 # df_study1 %>% filter(missings_amount <42  )
-
+df_study1<-df_study1 %>% mutate(across(c(Power, Achievement, Affiliation), ~. *1000))
 # Creating a vector with the names of all character-variables
 character_vars <- df_study1 %>%
   select(where(is.character)) %>%
@@ -525,7 +525,7 @@ n_gender_NA <- is.na(df_study1$Gender) %>% sum()
 
 
 patterns <- c(  "Kraftsport" = "kraft",   "Laufen" = "lauf")
-df_study1 <- replace_patterns(df_study1, "Sport", patterns)# See the script "Functions.R" to examine the function
+df_study1 <- replace_patterns(df_study1, "Sport", patterns)
 
 # count how many participants were in the sport categories
 n_running<-df_study1 %>% filter( Sport == "Laufen") %>% nrow()
@@ -853,6 +853,8 @@ print(heatmap)
 ```
 
 # Note
+This is the reproducible version of the article "Exploring Self-Conscious Emotions in Sport and Exercise: Relationships of Implicit and Explicit Processes of Authentic and Hubristic Pride and Exercising". 
+
 
 You can access the code that generated these results [here](https://github.com/Enno-W/Self-Conscious-Emotions-in-Sport-and-Exercise/blob/main/index.qmd)
 
@@ -2256,7 +2258,7 @@ diag_plot_lvl2_H
 
 ## Session Rate of Perceived Exhaustion
 
-The regression coefficients are shown in @tbl-hlmtable_rpe.  The third model with all predictors shows the lowest AIC and log likelihood. With φ = `r autocorr_param_RPE_CI_lower %>% round(2)`, 95% CI [`r autocorr_param_RPE_CI_lower %>% round(2)`, `r autocorr_param_RPE_CI_upper %>% round(2)`], a correlation matrix resulted in a worse fit ( *p* `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure, since it showed the lowest AIC and log likelihood and was tested for statistical assumptions and model quality.
+The regression coefficients are shown in @tbl-hlmtable_rpe. The null model revealed an **ICC** of `r icc_rpe[1]$ICC_adjusted %>% round (3)`  The third model with all predictors shows the lowest AIC and log likelihood. With φ = `r autocorr_param_RPE_CI_lower %>% round(2)`, 95% CI [`r autocorr_param_RPE_CI_lower %>% round(2)`, `r autocorr_param_RPE_CI_upper %>% round(2)`], a correlation matrix resulted in a worse fit ( *p* `r intercorr_test_rpe$"p-value"[2] %>% round(2)`), so we used the model without the correlation structure, since it showed the lowest AIC and log likelihood and was tested for statistical assumptions and model quality.
 
 A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive. Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
 
