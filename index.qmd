@@ -43,8 +43,8 @@ bibliography: bibliography.bib
 format:
   apaquarto-html:
     self-contained: true
-  apaquarto-docx:
-    numbered-lines: true
+  #apaquarto-docx:
+   # numbered-lines: true
   #apaquarto-pdf:
     #documentmode: man
 floatsintext: false
@@ -570,6 +570,14 @@ df_study2 <- df_study2 %>%
 
 filtered_n_s2 <-nrow(df_study2)
 
+### Count genders
+
+n_male_study2<-nrow(df_study2 %>% filter(Gender == "male"))
+n_female_study2<-nrow(df_study2 %>% filter(Gender == "female"))
+n_diverse_study2<-nrow(df_study2 %>% filter(Gender == "diverse"))
+n_gender_NA_study2 <- is.na(df_study2$Gender) %>% sum()
+
+
 ### Speed
 
 ##KM or H that are 0 should not be possible, so they are set to "NA"
@@ -862,7 +870,7 @@ You can access the code that generated these results [here](https://github.com/E
 
 ## Participants
 
-Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training routine). A sample size calculation performed before data collection using G\*Power [@Faul2007]  for testing one-tailed point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of *N* = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. Participants who reported not following a workout routine were excluded. The resulting final sample consisted of *N* = `r filtered_n_s1` recreational athletes who had a mean age of `r descriptives_list$Age_mean %>% round(2)` years (*SD* =  `r descriptives_list$Age_sd %>% round(2)`; range = `r descriptives_list$Age_min`–`r descriptives_list$Age_max`), including `r n_female` females, `r n_male` males, `r n_diverse` participants who identified as diverse, and `r numbers_to_words(n_gender_NA, cap=F)` who did not report their gender. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list$WeeklyH_base_min`–`r descriptives_list$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). Sports included running (*n* = `r n_running`), triathlon (*n* = `r n_triathlon`), weight training (*n* = `r n_weight`), and other endurance sports (*n* = `r n_other_sports`). Missing values amounted to `r missings_percentage_study1`% of all data.
+Participants were adults with specific goals (e.g., running a marathon, competing in a triathlon, aesthetics, bodybuilding) and/or pre-defined workout routines (e.g., running routine, weight training routine). A sample size calculation performed before data collection using G\*Power [@Faul2007]  for testing one-tailed point biserial correlation with |ρ| = .5, α = .05, and 1 – β = .95 indicated a necessary sample size of *N* = 34. As an incentive, participants were offered feedback on their results and suggestions for improving their workout routine motivation. *N* = `r original_n` participants completed the survey. Participants who reported not following a workout routine were excluded. The resulting final sample consisted of *N* = `r filtered_n_s2` recreational athletes who had a mean age of `r descriptives_list$Age_mean %>% round(2)` years (*SD* =  `r descriptives_list$Age_sd %>% round(2)`; range = `r descriptives_list$Age_min`–`r descriptives_list$Age_max`), including `r n_female` females, `r n_male` males, `r n_diverse` participants who identified as diverse, and `r numbers_to_words(n_gender_NA, cap=F)` who did not report their gender. Participants followed individual workout routines averaging `r descriptives_list$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list$WeeklyH_base_min`–`r descriptives_list$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list$WeeklyRPE_base_sd %>% round(2)`). Sports included running (*n* = `r n_running`), triathlon (*n* = `r n_triathlon`), weight training (*n* = `r n_weight`), and other endurance sports (*n* = `r n_other_sports`). Missing values amounted to `r missings_percentage_study1`% of all data.
 
 
 ## Measures
@@ -1033,23 +1041,23 @@ hlmtable<-huxreg("Nullmodell" = null_model_km,
     # weitere Variablen nach Bedarf ergänzen
 ```
 
-
-```{r SessionKM graphs and assumptions check}
+```{r SessionKM graphs and assumptions check_2}
 #| include: false
-##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
+##### Checking Assumptions [http://www.regorz-statistik.de/inhalte/r_HLM_2.html](http://www.regorz-statistik.de/inhalte/r_HLM_2.html) ###############################################
 
 # Extract Residuals
 SessionKM_residuals <- hlm_resid(model_SessionKM_3, level=1, include.ls = T) 
+
 ########Normality Plots #####
 # Normality Plot with least square residuals
-ndist_plot_km_ls <- ggplot(data = SessionKM_residuals  , aes(.ls.resid)) +
+ndist_plot_km_ls <- ggplot(data = SessionKM_residuals, aes(.ls.resid)) +
   geom_histogram(aes(y = after_stat(density)), bins=30) +
   stat_function(fun = dnorm,
-                args = list(mean = mean(SessionKM_residuals  $.ls.resid),
-                            sd = sd(SessionKM_residuals  $.ls.resid)), linewidth=2) # The "groups" (measurement points) are small, thus some are "rank deficient" - the regular residuals provide a less biased estimate
+                args = list(mean = mean(SessionKM_residuals$.ls.resid),
+                            sd = sd(SessionKM_residuals$.ls.resid)), linewidth=2)
 
 # Normality Plot with residuals
-ndist_plot_km<- ggplot(data = SessionKM_residuals, aes(.resid)) +
+ndist_plot_km <- ggplot(data = SessionKM_residuals, aes(.resid)) +
   geom_histogram(aes(y = after_stat(density)),
                  bins = 30,
                  fill = "gray80",
@@ -1076,7 +1084,7 @@ ndist_plot_km<- ggplot(data = SessionKM_residuals, aes(.resid)) +
   )
 
 # QQ line
-qqplot_km<-ggplot(SessionKM_residuals, aes(sample = .resid)) +
+qqplot_km <- ggplot(SessionKM_residuals, aes(sample = .resid)) +
   stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
   stat_qq_line(color = "black", linetype = "dashed") +
   labs(
@@ -1090,67 +1098,7 @@ qqplot_km<-ggplot(SessionKM_residuals, aes(sample = .resid)) +
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-
-
-###### Tests of normality ###############################################
-
-#### Test for the Attribution Model #####
-ntest_shapiro_km <-shapiro.test(SessionKM_residuals $.resid)  
-ntest_ks_km <-ks.test(SessionKM_residuals  $.resid, "pnorm", mean(SessionKM_residuals  $.resid), sd(SessionKM_residuals  $.resid), exact = T)
-
-######Variance Incluence Factor ####
-model_SessionKM_2_lmer <- lmer(
-  SessionKM_lead1 ~ 
-    Pride_cm_centered * PA_cm_centered +
-    Pride_cm_centered * Dynamics_centered + 
-    Pride_cm_centered * Locus_centered + 
-    Pride_cm_centered * Globality_centered +
-    (1 | ID),
-  data = long_df,
-  na.action = na.omit,
-  REML = TRUE
-)
-vif(model_SessionKM_2_lmer) 
-
-
-##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
-
-resid_plot_km<-ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) +
-  geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    x = "Fitted Values",
-    y = "Residuals",
-    title = NULL
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-#resid_plot_km+resid_plot_km_no_logtransform
-# Outliers (All)
-ggplot(data = SessionKM_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
-
-#Outliers per individual
-outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, group = ID)) +
-  geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
-  labs(
-    y = "Individual No.",
-    x = "Residuals"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-
 # Linearity
-# Select relevant predictors (adjust this list as needed)
 facet_df <- long_df %>%
   select(
     SessionKM_lead1,
@@ -1178,7 +1126,6 @@ linearity_plot <- ggplot(facet_df, aes(x = Wert, y = SessionKM_lead1)) +
     y = "Training Distance"
   ) +
   theme_minimal(base_size = 16)
-# facet_df %>% summarise(across(everything(), ~sum(is.na(.)))) --> The warning is only because of NAs
 
 model_SessionKM_3_lmer <- lmer(
   SessionKM_lead1 ~ 
@@ -1195,33 +1142,75 @@ model_SessionKM_3_lmer <- lmer(
   REML = TRUE
 )
 
-vif_KM_min<-vif(model_SessionKM_3_lmer) %>% min() %>% round (2)
+vif_KM_min <- vif(model_SessionKM_3_lmer) %>% min() %>% round(2)
+vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round(2)
 
-vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round (2)
+###### Tests of normality ###############################################
+
+#### Test for the Attribution Model #####
+ntest_shapiro_km <- shapiro.test(SessionKM_residuals$.resid)  
+ntest_ks_km <- ks.test(SessionKM_residuals$.resid, "pnorm", mean(SessionKM_residuals$.resid), sd(SessionKM_residuals$.resid), exact = T)
+
+##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
+
+resid_plot_km <- ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) +
+  geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Fitted Values",
+    y = "Residuals",
+    title = NULL
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.border = element_rect(fill = NA, color = "black")
+  )
+
+# Outliers (All)
+ggplot(data = SessionKM_residuals, aes(y = .resid)) + theme_gray() + geom_boxplot()
+
+# Outliers per individual
+outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, group = ID)) +
+  geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
+  labs(
+    y = "Individual No.",
+    x = "Residuals"
+  ) +
+  theme_classic(base_size = 12) +
+  theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.border = element_rect(fill = NA, color = "black")
+  )
 
 #### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
 # Extract Level-2 residuals
 KM_residuals_level2 <- hlm_resid(model_SessionKM_3, level = "ID", include.ls = FALSE)
 
 ggplot(data = KM_residuals_level2, aes(.ranef.intercept)) +
-  
-  geom_histogram(aes(y =after_stat(density)), bins=20) + stat_function(fun = dnorm,
-                                                                args = list(mean = mean(KM_residuals_level2$.ranef.intercept),
-                                                                            sd = sd(KM_residuals_level2$.ranef.intercept)), size=2)
+  geom_histogram(aes(y = after_stat(density)), bins = 20) + 
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = mean(KM_residuals_level2$.ranef.intercept),
+      sd = sd(KM_residuals_level2$.ranef.intercept)
+    ), 
+    size = 2
+  )
 
-# Shapiro-Wilk Test: Are level 2 residuals normally distributed??
-level2.resids.shapirotest <- shapiro.test(KM_residuals_level2$.ranef.intercept)
+# Shapiro-Wilk Test: Are level 2 residuals normally distributed?
+level2.resids.shapirotest_km <- shapiro.test(KM_residuals_level2$.ranef.intercept)
 
- # Homoscedasticity in level 2? Extract Level-2 random effects
-
+# Extract Level-2 random effects
 l2_residuen <- ranef(model_SessionKM_3) %>%
   tibble::rownames_to_column(var = "ID") %>%
   rename(ranef_intercept = `(Intercept)`)
 
-
 fixefs <- fixef(model_SessionKM_3)
 
-#Compute Level-2 predictor means (aggregated to person level)
+# Compute Level-2 predictor means (aggregated to person level)
 l2_preds <- long_df %>%
   group_by(ID) %>%
   summarise(
@@ -1247,7 +1236,6 @@ l2_preds <- l2_preds %>%
     `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
   )
 
-
 # Predict person-level average outcome based on fixed effects
 l2_preds <- l2_preds %>%
   mutate(
@@ -1272,18 +1260,21 @@ l2_preds <- l2_preds %>%
 
 l2_preds <- l2_preds %>%
   mutate(ID = as.character(ID))
-#Join predicted values and Level-2 residuals
+
+# Strip the custom class attribute
+class(l2_residuen) <- "data.frame"
+
+# Join predicted values and Level-2 residuals
 plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
+
 # Plot
-diag_plot_lvl2_KM<-ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+diag_plot_lvl2_KM <- ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
   geom_point() +
   theme_minimal() +
-  labs(x = "Predicted Level 2-Values", y = "Random Intercepts")
+  labs(x = "Predicted Level 2 - Values", y = "Random Intercepts")
 
-
-
-
-
+### Statistical test
+bp_test_km <- bptest(ranef_intercept ~ pred, data = plot_df)
 ```
 
 ```{r HLM Table and graphs for H (Duration)}
@@ -1617,6 +1608,8 @@ l2_preds <- l2_preds %>%
 
 l2_preds <- l2_preds %>%
   mutate(ID = as.character(ID))
+# Strip the custom class attribute
+class(l2_residuen) <- "data.frame"
 #Join predicted values and Level-2 residuals
 plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
 
@@ -1793,21 +1786,21 @@ variogram_rpe_graph <-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
   theme_minimal()
 ```
 
-
 ```{r SessionRPE residual graphs and assumptions check}
 #| include: false
-##### Checking Assumptions http://www.regorz-statistik.de/inhalte/r_HLM_2.html ###############################################
+##### Checking Assumptions [http://www.regorz-statistik.de/inhalte/r_HLM_2.html](http://www.regorz-statistik.de/inhalte/r_HLM_2.html) ###############################################
 
 # Extract Residuals
 SessionRPE_residuals <- hlm_resid(model_SessionRPE_3, level=1, include.ls = T) 
 SessionRPE_residuals_no_logtransform <- hlm_resid(model_SessionRPE_4, level=1, include.ls = T) 
+
 ########Normality Plots #####
 # Normality Plot with least square residuals
-ndist_plot_rpe_ls <- ggplot(data = SessionRPE_residuals  , aes(.ls.resid)) +
+ndist_plot_rpe_ls <- ggplot(data = SessionRPE_residuals , aes(.ls.resid)) +
   geom_histogram(aes(y = after_stat(density)), bins=30) +
   stat_function(fun = dnorm,
-                args = list(mean = mean(SessionRPE_residuals  $.ls.resid),
-                            sd = sd(SessionRPE_residuals  $.ls.resid)), linewidth=2) # The "groups" (measurement points) are small, thus some are "rank deficient" - the regular residuals provide a less biased estimate
+                args = list(mean = mean(SessionRPE_residuals $.ls.resid),
+                            sd = sd(SessionRPE_residuals $.ls.resid)), linewidth=2)
 
 # Normality Plot with residuals
 ndist_plot_rpe<- ggplot(data = SessionRPE_residuals, aes(.resid)) +
@@ -1836,7 +1829,6 @@ ndist_plot_rpe<- ggplot(data = SessionRPE_residuals, aes(.resid)) +
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-#ndist_plot_rpe+ndist_plot_rpe_no_logtransform
 # QQ line
 qqplot_rpe<-ggplot(SessionRPE_residuals, aes(sample = .resid)) +
   stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
@@ -1851,6 +1843,7 @@ qqplot_rpe<-ggplot(SessionRPE_residuals, aes(sample = .resid)) +
     axis.text = element_text(size = 10),
     panel.border = element_rect(fill = NA, color = "black")
   )
+
 qqplot_rpe_no_logtransform <-ggplot(SessionRPE_residuals_no_logtransform, aes(sample = .resid)) +
   stat_qq(shape = 21, color = "black", fill = "black", size = 2) +
   stat_qq_line(color = "black", linetype = "dashed") +
@@ -1864,10 +1857,8 @@ qqplot_rpe_no_logtransform <-ggplot(SessionRPE_residuals_no_logtransform, aes(sa
     axis.text = element_text(size = 10),
     panel.border = element_rect(fill = NA, color = "black")
   )
-# qqplot_rpe+qqplot_rpe_no_logtransform
 
 # Linearity
-# Select relevant predictors (adjust this list as needed)
 facet_df <- long_df %>%
   select(
     SessionRPE_lead1,
@@ -1896,24 +1887,7 @@ linearity_plot_rpe <- ggplot(facet_df, aes(x = Wert, y = SessionRPE_lead1)) +
   ) +
   theme_minimal(base_size = 16)
 
-model_SessionRPE_3_lmer <- lmer(
-  SessionRPE_lead1 ~ 
-    Pride_cm_centered * PA_cm_centered +
-    Pride_cm_centered * Dynamics_centered +
-    Pride_cm_centered * Locus_centered +
-    Pride_cm_centered * Globality_centered +
-    Pride_cm_centered * Affiliation_centered +
-    Pride_cm_centered * Achievement_centered +
-    Pride_cm_centered * Power_centered +
-    (1 | ID),
-  data = long_df,
-  na.action = na.omit,
-  REML = TRUE
-)
-
-
-
-##### variance inflation Factor ### 
+##### Variance Inflation Factor ### 
 model_SessionRPE_3_lmer <- lmer(
   SessionRPE_lead1 ~ 
     Pride_cm_centered * PA_cm_centered + 
@@ -1929,14 +1903,14 @@ model_SessionRPE_3_lmer <- lmer(
   REML = TRUE
 )
 
-vif_RPE_min<-vif(model_SessionRPE_3_lmer) %>% min() %>% round (2)
+vif_RPE_min <- vif(model_SessionRPE_3_lmer) %>% min() %>% round(2)
+vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round(2)
 
-vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round (2)
 ###### Tests of normality ###############################################
 
-ntest_shapiro_rpe <-shapiro.test(SessionRPE_residuals $.resid)  
-ntest_ks_rpe <-ks.test(SessionRPE_residuals  $.resid, "pnorm", mean(SessionRPE_residuals  $.resid), sd(SessionRPE_residuals  $.resid), exact = T)
-ntest_ks_rpe_no_logtransform <-ks.test(SessionRPE_residuals_no_logtransform  $.resid, "pnorm", mean(SessionRPE_residuals_no_logtransform  $.resid), sd(SessionRPE_residuals_no_logtransform  $.resid), exact = T)
+ntest_shapiro_rpe <- shapiro.test(SessionRPE_residuals $.resid)  
+ntest_ks_rpe <- ks.test(SessionRPE_residuals $.resid, "pnorm", mean(SessionRPE_residuals $.resid), sd(SessionRPE_residuals $.resid), exact = T)
+ntest_ks_rpe_no_logtransform <- ks.test(SessionRPE_residuals_no_logtransform $.resid, "pnorm", mean(SessionRPE_residuals_no_logtransform $.resid), sd(SessionRPE_residuals_no_logtransform $.resid), exact = T)
 
 ##### Visualisation of homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 resid_plot_rpe<-ggplot(data = SessionRPE_residuals, aes(x = .fitted, y = .resid)) +
@@ -1968,11 +1942,11 @@ resid_plot_rpe_no_logtransform<-ggplot(data = SessionRPE_residuals_no_logtransfo
     axis.text = element_text(size = 10),
     panel.border = element_rect(fill = NA, color = "black")
   )
-#resid_plot_rpe+resid_plot_rpe_no_logtransform
+
 # Outliers (All)
 ggplot(data = SessionRPE_residuals , aes(y= .resid)) + theme_gray() + geom_boxplot()
 
-#Outliers per individual
+# Outliers per individual
 outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, group = ID)) +
   geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
   labs(
@@ -1986,30 +1960,27 @@ outl_plot_rpe <- ggplot(SessionRPE_residuals, aes(x = .resid, group = ID)) +
     panel.border = element_rect(fill = NA, color = "black")
   )
 
-
 #### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
 # Extract Level-2 residuals
 RPE_residuals_level2 <- hlm_resid(model_SessionRPE_3, level = "ID", include.ls = FALSE)
 
 ggplot(data = RPE_residuals_level2, aes(.ranef.intercept)) +
-  
-  geom_histogram(aes(y =after_stat(density)), bins=20) + stat_function(fun = dnorm,
-                                                                args = list(mean = mean(RPE_residuals_level2$.ranef.intercept),
-                                                                            sd = sd(RPE_residuals_level2$.ranef.intercept)), size=2)
+  geom_histogram(aes(y = after_stat(density)), bins=20) + 
+  stat_function(fun = dnorm,
+                args = list(mean = mean(RPE_residuals_level2$.ranef.intercept),
+                            sd = sd(RPE_residuals_level2$.ranef.intercept)), size=2)
 
 # Shapiro-Wilk Test: Are level 2 residuals normally distributed?
 level2.resids.shapirotest_rpe <- shapiro.test(RPE_residuals_level2$.ranef.intercept)
 
- # Extract Level-2 random effects
-
+# Extract Level-2 random effects
 l2_residuen <- ranef(model_SessionRPE_3) %>%
   tibble::rownames_to_column(var = "ID") %>%
   rename(ranef_intercept = `(Intercept)`)
 
-
 fixefs <- fixef(model_SessionRPE_3)
 
-#Compute Level-2 predictor means (aggregated to person level)
+# Compute Level-2 predictor means (aggregated to person level)
 l2_preds <- long_df %>%
   group_by(ID) %>%
   summarise(
@@ -2035,7 +2006,6 @@ l2_preds <- l2_preds %>%
     `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
   )
 
-
 # Predict person-level average outcome based on fixed effects
 l2_preds <- l2_preds %>%
   mutate(
@@ -2060,16 +2030,21 @@ l2_preds <- l2_preds %>%
 
 l2_preds <- l2_preds %>%
   mutate(ID = as.character(ID))
-#Join predicted values and Level-2 residuals
+
+# Strip the custom class attribute
+class(l2_residuen) <- "data.frame"
+
+# Join predicted values and Level-2 residuals
 plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
 
-#Plot: Predicted Level-2 values vs. random intercepts
-diag_plot_lvl2_RPE<- ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
+# Plot: Predicted Level-2 values vs. random intercepts
+diag_plot_lvl2_RPE <- ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
   geom_point() +
   theme_minimal() +
   labs(x = "Predicted Level 2 - Values", y = "Random Intercepts")
 
-
+### Statistical test
+bp_test_rpe <- bptest(ranef_intercept ~ pred, data = plot_df)
 ```
 
 ## Analysis
@@ -2085,7 +2060,7 @@ The results for the hierarchical linear models are presented separately for each
 ## Participants
 
 After completing study 1, participants were invited to report on six of their following training sessions. 
-The resulting final sample consisted of *N* = `r filtered_n_s2` recreational athletes who had a mean age of `r descriptives_list_study2$Age_mean %>% round(2)` years (*SD* =  `r descriptives_list_study2$Age_sd %>% round(2)`; range = `r descriptives_list_study2$Age_min`–`r descriptives_list_study2$Age_max`), including `r n_female` females, `r n_male` males, `r n_diverse` participants who identified as diverse, and `r numbers_to_words(n_gender_NA, cap=T)` who did not report their gender. Participants followed individual workout routines averaging `r descriptives_list_study2$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list_study2$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list_study2$WeeklyH_base_min`–`r descriptives_list_study2$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list_study2$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list_study2$WeeklyRPE_base_sd %>% round(2)`). Sports included running (*n* = `r n_running_s2`), triathlon (*n* = `r n_triathlon_s2`), weight training (*n* = `r n_weight_s2`), and other endurance sports (*n* = `r n_other_sports_s2`). Missing values amounted to `r missings_percentage_study2`% of all data.
+The resulting final sample consisted of *N* = `r filtered_n_s2` recreational athletes who had a mean age of `r descriptives_list_study2$Age_mean %>% round(2)` years (*SD* =  `r descriptives_list_study2$Age_sd %>% round(2)`; range = `r descriptives_list_study2$Age_min`–`r descriptives_list_study2$Age_max`), including `r n_female_study2` females, `r n_male_study2` males, and `r n_diverse_study2` participants who identified as diverse. Participants followed individual workout routines averaging `r descriptives_list_study2$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list_study2$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list_study2$WeeklyH_base_min`–`r descriptives_list_study2$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list_study2$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list_study2$WeeklyRPE_base_sd %>% round(2)`). Sports included running (*n* = `r n_running_s2`), triathlon (*n* = `r n_triathlon_s2`), weight training (*n* = `r n_weight_s2`), and other endurance sports (*n* = `r n_other_sports_s2`). Missing values amounted to `r missings_percentage_study2`% of all data.
 
 ## Measures
 
@@ -2114,7 +2089,7 @@ The variance inflation factor ranged from *vif~min~* = `r vif_KM_min` to *vif~ma
 
 The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(3)`.
 
-On the individual level (level 2), a shapiro-wilk-test showed that residuals were not normally distributed (*p* `r level2.resids.shapirotest$p.value %>% format_p()`). The distribution of residuals in @fig-sessionkm_assumptions_lvl2 show no serious violation of homoscedasticity. 
+On the individual level (level 2), a shapiro-wilk-test showed that residuals were not normally distributed (*p* `r level2.resids.shapirotest_km$p.value %>% format_p()`). The distribution of residuals in @fig-sessionkm_assumptions_lvl2 show no serious violation of homoscedasticity. 
 
 ```{r}
 #| label: tbl-hlmtable_km
@@ -2270,7 +2245,7 @@ The marginal and conditional R-squared values, representing the portion of varia
 
  @fig-linearity_rpe shows the predictors plotted against the target variable. 
  
- On the individual level (level 2), the residuals were not normally distributed (*p*  `r level2.resids.shapirotest$p.value %>% format_p()`). No serious deviation from the assumption of homoscedasticity was present in @fig-sessionrpe_assumptions_lvl2.
+ On the individual level (level 2), the residuals were not normally distributed (*p*  `r level2.resids.shapirotest_rpe$p.value %>% format_p()`). No serious deviation from the assumption of homoscedasticity was present in @fig-sessionrpe_assumptions_lvl2.
 
 
 ```{r}
