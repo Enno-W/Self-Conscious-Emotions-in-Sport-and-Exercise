@@ -1,5 +1,5 @@
 ---
-title: "Self-Conscious Emotions in Sport and Exercise: Relationships of Implicit and Explicit Processes of Authentic and Hubristic Pride and Physical Activity"
+title: "Exploring Self-Conscious Emotions in Sport and Exercise: Implicit and Explicit Processes within the Pride-Exercise Relationship in Recreational Athletes"
 shorttitle: "Self-Conscious Emotions in Sport"
 author:
   - name: Sascha Leisterer-Härtig
@@ -37,8 +37,8 @@ author-note:
     gratitude: ~
     authorship-agreements: ~
 link-citations: true
-abstract: "Self-conscious emotions play a crucial role in sports and exercise by reflecting self-related goal achievements. Traditionally, these emotions are explained through explicit attributional processes. However, implicit processes that influence self-related goal orientation are often overlooked. This research covers two studies to investigate implicit determinants of pride in sports and exercising. First, a cross-sectional correlation study reveals a negative correlation of the implicit affiliation motive with authentic pride in ambitious recreational athletes. Second, a longitudinal study that shows that pride predicted a lower perceived exhaustion if the implicit the affiliation motive was high, and a higher perceived exertion if the achievement motive was high. Therefore, considering implicit processes in recreational athletes as potential determinants of self-conscious emotions appears to be more significant than previously thought. "
-keywords: [Affect, Causal Attribution, Exercise Behavior, Recreational Athletes, Well-Being]
+abstract: "Purpose: Self-conscious emotions play an important role in sport and exercise by reflecting self-evaluations of goal achievement. Although pride has traditionally been explained through explicit attributional processes, affective and implicit motivational characteristics may also contribute to its relationship with exercise. Across two studies, we examined affective, motivational, and attributional characteristics in relation to authentic and hubristic pride and exercise outcomes. Methods and Results: Study 1 used a cross-sectional design with recreational athletes (n = 32). Authentic pride was positively associated with positive affect, whereas hubristic pride was positively associated with negative affect. Pride showed no substantial associations with exercise outcomes. Study 2 followed recreational endurance athletes (n = 20) across six consecutive training sessions to examine prospective relationships with perceived exercise intensity. Authentic pride showed no uniform prospective association with exercise intensity. Instead, the prospective relationship between authentic pride and subsequent perceived exercise intensity varied as a function of affective, attributional, and implicit motivational characteristics. Greater internal attribution and higher implicit achievement motivation shifted this relationship in a more positive direction, whereas higher positive affect and implicit affiliation motivation shifted it in a more negative direction. Conclusion: The prospective relationship between authentic pride and perceived exercise intensity may vary with individual affective, motivational, and attributional characteristics. These findings highlight the importance of considering individual differences when examining the behavioral relevance of pride in sport and exercise. "
+keywords: [authentic pride, causal attribution, implicit motives, exercise behavior, positive affect, recreational athletes]
 bibliography: bibliography.bib
 format:
   apaquarto-html:
@@ -577,12 +577,11 @@ n_diverse_study2<-nrow(df_study2 %>% filter(Gender == "diverse"))
 n_gender_NA_study2 <- is.na(df_study2$Gender) %>% sum()
 
 
-### Speed
+### Speed diagnostic to justify exclusion of session distance from analysis
 
 ##KM or H that are 0 should not be possible, so they are set to "NA"
 df_study2[, c("SessionKM_1", "SessionKM_2", "SessionKM_3", "SessionKM_4", "SessionKM_5", "SessionKM_6" )]
 df_study2[, c("SessionH_1", "SessionH_2", "SessionH_3", "SessionH_4", "SessionH_5", "SessionH_6" )]
-df_study2 <- df_study2 %>% rename(SessionKMaverage = SessionKM_ave)
 df_study2 <- df_study2 %>% rename(SessionHaverage = SessionH_ave)
 df_study2 <- df_study2 %>%
   mutate(across(starts_with("SessionKM_"), ~ ifelse(. == 0, NA, .))) %>%
@@ -623,31 +622,6 @@ n_weight_s2<-df_study2 %>% filter( SportCode == 3) %>% nrow()
 n_triathlon_s2 <-df_study2 %>% filter( SportCode == 2) %>% nrow()
 n_other_sports_s2 <- df_study2 %>% filter( SportCode == 4) %>% nrow()
 
-
-
-### Z-Standardising for For repeated measures ##
-# z-Standardising weekly KM by speed
-for (i in 1:6) {
-  speed_var <- paste0("Speed_", i)
-  class_var <- paste0("Speed_", i, "_class")
-
-  df_study2 <- df_study2 %>%
-    group_by(.data[[class_var]]) %>%
-    mutate(!!speed_var := as.numeric(scale(.data[[speed_var]]))) %>%
-    ungroup()
-}
-
-# z-standardising KM
-for (i in 1:6) {
-  km_var <- paste0("SessionKM_", i)
-  class_var <- paste0("Speed_", i, "_class")
- 
-  df_study2 <- df_study2 %>%
-    group_by(.data[[class_var]]) %>%
-    mutate(!!km_var := as.numeric(scale(.data[[km_var]]))) %>%
-    ungroup()
-}
-
 #####Convert Data to long format#####
 repeated_measures1<-df_study2 %>% ungroup() %>% select( matches("_[1-6]$")) %>% names()# This is a regex, a regular expression to find a certain pattern. The Dollar sign is for "Ends with". Learn more here: https://github.com/ziishaned/learn-regex/blob/master/translations/README-de.md
 
@@ -667,7 +641,6 @@ long_df <- df_study2 %>%
   arrange(ID, Time) %>%
   group_by(ID) %>%
   mutate(
-    SessionKM_lead1 = lead(SessionKM, order_by = Time),
     SessionH_lead1 = lead(SessionH, order_by = Time),
     SessionRPE_lead1 = lead(SessionRPE, order_by = Time)
   ) %>%
@@ -719,7 +692,7 @@ SessionKM_shapirotest_after_z<-shapiro.test(df_study2$WeeklyKM_base)
 ## Study 1
 #### Skewness, Kurtosis and min-max range table###############################################
 pride_variables<-c("Pride_base", "Hubris_base")
-base_training_and_affect_variables<-df_study1 %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base")) %>% names() 
+base_training_and_affect_variables<-df_study1 %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base|WeeklyKM_base")) %>% names() 
 motive_variables <- c("Achievement", "Affiliation", "Power", df_study1 %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
 attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
@@ -729,23 +702,22 @@ df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "E
 df_stat$Variable <- c(
   "1. Pride", 
     "2. Hubris", 
-    "3. Session Training Distance", 
-    "4. Session Training Hours", 
-    "5. Session Training RPE", 
-    "6. Positive Affect", 
-    "7. Negative Affect", 
-    "8. Achievement", 
-    "9. Affiliation", 
-    "10. Power", 
-    "11. Hope for Success", 
-    "12. Fear of Failure", 
-    "13. Hope for Belonging",
-    "14. Fear of Rejection",
-    "15. Hope for Control",
-    "16. Fear of Loss of Control",
-    "17. Locus",
-    "18. Dynamics",
-    "19. Controllability"
+    "3. Session Training Hours", 
+    "4. Session Training RPE", 
+    "5. Positive Affect", 
+    "6. Negative Affect", 
+    "7. Achievement", 
+    "8. Affiliation", 
+    "9. Power", 
+    "10. Hope for Success", 
+    "11. Fear of Failure", 
+    "12. Hope for Belonging",
+    "13. Fear of Rejection",
+    "14. Hope for Control",
+    "15. Fear of Loss of Control",
+    "16. Locus",
+    "17. Dynamics",
+    "18. Controllability"
 )
 
 table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
@@ -761,23 +733,22 @@ corr_table<-df_study1[,correlation_variables] %>%
   generate_correlation_table2(method= "spearman",c(
     "1. Pride", 
     "2. Hubris", 
-    "3. Session Training Distance", 
-    "4. Session Training Hours", 
-    "5. Session Training RPE", 
-    "6. Positive Affect", 
-    "7. Negative Affect", 
-    "8. Achievement", 
-    "9. Affiliation", 
-    "10. Power", 
-    "11. Hope for Success", 
-    "12. Fear of Failure", 
-    "13. Hope for Belonging",
-    "14. Fear of Rejection",
-    "15. Hope for Control",
-    "16. Fear of Loss of Control",
-    "17. Locus",
-    "18. Dynamics",
-    "19. Controllability"
+    "3. Session Training Hours", 
+    "4. Session Training RPE", 
+    "5. Positive Affect", 
+    "6. Negative Affect", 
+    "7. Achievement", 
+    "8. Affiliation", 
+    "9. Power", 
+    "10. Hope for Success", 
+    "11. Fear of Failure", 
+    "12. Hope for Belonging",
+    "13. Fear of Rejection",
+    "14. Hope for Control",
+    "15. Fear of Loss of Control",
+    "16. Locus",
+    "17. Dynamics",
+    "18. Controllability"
   ))
 
 
@@ -790,51 +761,28 @@ corr_table<-df_study1[,correlation_variables] %>%
 custom_labels <- c(
     "Pride_base" = "1. Pride", 
     "Hubris_base" = "2. Hubris", 
-    "WeeklyKM_base" = "3. Weekly Training Distance (KM)", 
-    "WeeklyH_base" = "4. Weekly Training Hours", 
-    "WeeklyRPE_base" = "5. Weekly Training RPE", 
-    "PA_base" = "6. Positive Affect", 
-    "NA_base" = "7. Negative Affect", 
-    "Achievement" = "8. Achievement", 
-    "Affiliation" = "9. Affiliation", 
-    "Power" = "10. Power", 
-    "Gen_Success_hope" = "11. Hope for Success", 
-    "Gen_Failure_fear" = "12. Fear of Failure", 
-    "Gen_Belonging_hope" = "13. Hope for Belonging", 
-    "Gen_Rejection_fear" = "14. Fear of Rejection", 
-    "Gen_Control_hope" = "15. Hope for Control", 
-    "Gen_LossControl_fear" = "16. Fear of Loss of Control", 
-    "Locus" = "17. Locus", 
-    "Dynamics" = "18. Dynamics", 
-    "Controlability_self" = "19. Self-Controllability"
+    "WeeklyH_base" = "3. Weekly Training Hours", 
+    "WeeklyRPE_base" = "4. Weekly Training RPE", 
+    "PA_base" = "5. Positive Affect", 
+    "NA_base" = "6. Negative Affect", 
+    "Achievement" = "7. Achievement", 
+    "Affiliation" = "8. Affiliation", 
+    "Power" = "9. Power", 
+    "Gen_Success_hope" = "10. Hope for Success", 
+    "Gen_Failure_fear" = "11. Fear of Failure", 
+    "Gen_Belonging_hope" = "12. Hope for Belonging", 
+    "Gen_Rejection_fear" = "13. Fear of Rejection", 
+    "Gen_Control_hope" = "14. Hope for Control", 
+    "Gen_LossControl_fear" = "15. Fear of Loss of Control", 
+    "Locus" = "16. Locus", 
+    "Dynamics" = "17. Dynamics", 
+    "Controlability_self" = "18. Self-Controllability"
 )
 
 #print_all_histograms(df, bins_n = 30)
 #print_all_histograms(df[correlation_variables])
 
  violin_plots<-print_all_violin_boxplots(df_study1[,correlation_variables], facet_ncol = 3, facet_nrow = NULL, custom_labels = custom_labels)
-
-
-# long_df_filtered <- na.omit(long_df[, c(
-#   "SessionKM_lead1", "Pride_cm_centered", "Dynamics_centered",
-#   "PA_cm_centered", "Locus_centered", "Globality_centered",
-#   "Affiliation_centered", "Achievement_centered", "Power_centered",
-#   "Time", "ID"
-# )])
-# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
-# long_df_filtered$fitted_km <- fitted(model_SessionKM_3)
-
-
-# hlm_plot<-ggplot(long_df_filtered, aes(x = Time, y = fitted_km, group = ID, color = as.factor(ID))) +
-#   geom_line(show.legend = F)+
-#   geom_point(aes(x= Time, y= SessionKM_log), show.legend = F)+
-#   labs(x = "Time", y = "Fitted Goal", title = "Predicted KM by ID") +
-#   theme_minimal()+
-#   labs(
-#     x = "Session No. ",
-#     y = "Session Distance",
-#     color = "ID"
-#   )
 
 # Compute Spearman correlation coefficients
 correlation_coefficients <- cor(df_study1[, correlation_variables], use = "pairwise.complete.obs", method = "spearman")
@@ -892,7 +840,7 @@ Missing values amounted to `r missings_percentage_study1`% of all data.
 First, implicit motives for achievement, affiliation, and power motives were *z*-standardized.
 The gender-balanced T-scores for the motive components were calculated according to the Multi-Motive-Grid's scoring procedure.
 All data were checked for normal distribution.
-Applying the Shapiro-Wilk test, the weekly training distance (*W* = `r shapiro.test(df_study1$WeeklyKM_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyKM_base`), weekly training duration (*W* = `r shapiro.test(df_study1$WeeklyH_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived exhaustion (*W* = `r shapiro.test(df_study1$WeeklyRPE_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyRPE_base`) were not normally distributed.
+Applying the Shapiro-Wilk test, the weekly training duration (*W* = `r shapiro.test(df_study1$WeeklyH_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyH_base`) and perceived exhaustion (*W* = `r shapiro.test(df_study1$WeeklyRPE_base)$statistic %>% round(3)`; *p* `r vars_not_normal_with_p_values$WeeklyRPE_base`) were not normally distributed.
 Second, descriptive statistics were calculated.
 Third, due to the small sample size and normality violations, Spearman rank correlations were calculated.
 For the analysis, Version `r R.Version()$major`.`r R.Version()$minor` of the programming language R [@rlanguage2024] was used.
@@ -928,7 +876,7 @@ Further, the sample intended to report more internal, variable, and less uncontr
 
 ### Hypothesis testing
 
-Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`); pride and fear of rejection (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`); hubris and negative affect (*Ρ* = `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`); as well as weekly training duration and training distance (*Ρ* = `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$WeeklyH_base, df_study1$WeeklyKM_base,method = "spearman")$p.value %>% round (3) %>% format_p()`).
+Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`); pride and fear of rejection (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`); and hubris and negative affect (*Ρ* = `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 The implicit affiliation motive (*Ρ* = `r cor.test(df_study1$Affiliation, df_study1$WeeklyH_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Affiliation, df_study1$WeeklyH_base,method = "spearman")$p.value %>% round (3) %>% format_p()`) and dynamic attributions (*Ρ* = `r cor.test(df_study1$Dynamics, df_study1$WeeklyH_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Dynamics, df_study1$WeeklyH_base,method = "spearman")$p.value %>% round (3) %>% format_p()`) correlated with training duration.
 Negative affect correlated with fear of failure (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), fear of rejection (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), locus (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$p.value %>% round (3) %>% format_p()`) and controllability (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Controlability_self,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Controlability_self,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 The achievement motive correlated with the implicit affiliation motive (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Affiliation,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Achievement, df_study1$Affiliation,method = "spearman")$p.value %>% round (3) %>% format_p()`) and power motive (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Power,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Achievement, df_study1$Power,method = "spearman")$p.value %>% round (3) %>% format_p()`).
@@ -960,344 +908,6 @@ heatmap
 ```
 
 # Study 2
-
-```{r HLM Table for KM}
-#| include: false
-
-
-##### Null model and ICC ####
-
-null_model_km<- lme(SessionKM_lead1 ~ 1, 
-                      data=long_df, 
-                      random= ~1|ID, 
-                      method="ML", 
-                      na.action = na.omit) # NAs are ignored
-
-summary(null_model_km)
-# The "1" stands for the "intercept"
-#The formula means: Fixed effects: for "Goal", only the intercepts are estimated. Random effects: "The intercept varies between participants". 
-icc_km<-performance::icc(null_model_km)
-
-
-model_SessionKM_1 <- lme(
-  fixed = SessionKM_lead1 ~ Pride_cm_centered * PA_cm_centered,
-  random = ~ 1 | ID,
-    correlation = nlme::corAR1(form = ~ Time | ID),
-  data = long_df,
-  na.action = na.omit,
-  method = "REML"
-)
-
-model_SessionKM_2 <- update(model_SessionKM_1,
-  fixed = . ~ . +
-    Pride_cm_centered * Dynamics_centered +
-    Pride_cm_centered * Locus_centered +
-    Pride_cm_centered * Globality_centered
-)
-
-model_SessionKM_3 <- update(model_SessionKM_2,
-  fixed = . ~ . +
-    Pride_cm_centered * Affiliation_centered +
-    Pride_cm_centered * Achievement_centered +
-    Pride_cm_centered * Power_centered
-)
-
-#### Does a correlation matrix improve model fit? 
-
-nlme::Variogram(model_SessionKM_3) # This seems inverse to the expected pattern: The larger the distance between measurement points, the more similar. 
-autocorr_param_KM_CI_lower<-nlme::intervals(model_SessionKM_3)$corStruct[1] 
-autocorr_param_KM_CI_est<-nlme::intervals(model_SessionKM_3)$corStruct[2]
-autocorr_param_KM_CI_upper<-nlme::intervals(model_SessionKM_3)$corStruct[3]
-
-model_SessionKM_3_no_corr <- lme(
-  fixed = SessionKM_lead1 ~ Pride_cm_centered * PA_cm_centered +
-    Pride_cm_centered * Dynamics_centered +
-    Pride_cm_centered * Locus_centered +
-    Pride_cm_centered * Globality_centered +
-    Pride_cm_centered * Affiliation_centered +
-    Pride_cm_centered * Achievement_centered +
-    Pride_cm_centered * Power_centered,
-  random = ~ 1 | ID,
-  data = long_df,
-  na.action = na.omit,
-  method = "REML"
-)
-
-corAR_test_km<-anova(model_SessionKM_3, model_SessionKM_3_no_corr) # The model with correlation matrix does fit significantly better, but using the model does not change parameter estimates
-
-
-Rsquared_km<-r.squaredGLMM(model_SessionKM_3)
-
-
-### Table Output #####
-# Distance
-hlmtable<-huxreg("Nullmodell" = null_model_km, 
-                 "Model 1" = model_SessionKM_1, 
-                 "Model 2" = model_SessionKM_2, 
-                 "Model 3" = model_SessionKM_3,
-                 "Model 4" = model_SessionKM_3_no_corr,
-                 statistics = NULL, 
-                 number_format = 2, 
-                 bold_signif = 0.05, 
-                 tidy_args =  list(effects = "fixed"), 
-                 error_pos="right",
-                coefs = c(
-    "(Intercept)" = "(Intercept)",
-    "Pride" = "Pride_cm_centered",
-     "Positive Affect" = "PA_cm_centered",
-    "Dynamics" = "Dynamics_centered",
-    "Locus" = "Locus_centered",
-    "Globality" = "Globality_centered",
-    "Affiliation" = "Affiliation_centered",
-    "Achievement" = "Achievement_centered",
-    "Power" = "Power_centered",
-    "Pride × Dynamics" = "Pride_cm_centered:Dynamics_centered",
-    "Pride × Positive Affect" = "Pride_cm_centered:PA_cm_centered",
-    "Pride × Locus" = "Pride_cm_centered:Locus_centered",
-    "Pride × Globality" = "Pride_cm_centered:Globality_centered",
-    "Pride × Affiliation" = "Pride_cm_centered:Affiliation_centered",
-    "Pride × Achievement" = "Pride_cm_centered:Achievement_centered",
-    "Pride × Power" = "Pride_cm_centered:Power_centered")
-)
-
-    # weitere Variablen nach Bedarf ergänzen
-```
-
-```{r SessionKM graphs and assumptions check_2}
-#| include: false
-##### Checking Assumptions [http://www.regorz-statistik.de/inhalte/r_HLM_2.html](http://www.regorz-statistik.de/inhalte/r_HLM_2.html) ###############################################
-
-# Extract Residuals
-SessionKM_residuals <- hlm_resid(model_SessionKM_3, level=1, include.ls = T) 
-
-########Normality Plots #####
-# Normality Plot with least square residuals
-ndist_plot_km_ls <- ggplot(data = SessionKM_residuals, aes(.ls.resid)) +
-  geom_histogram(aes(y = after_stat(density)), bins=30) +
-  stat_function(fun = dnorm,
-                args = list(mean = mean(SessionKM_residuals$.ls.resid),
-                            sd = sd(SessionKM_residuals$.ls.resid)), linewidth=2)
-
-# Normality Plot with residuals
-ndist_plot_km <- ggplot(data = SessionKM_residuals, aes(.resid)) +
-  geom_histogram(aes(y = after_stat(density)),
-                 bins = 30,
-                 fill = "gray80",
-                 color = "black") +
-  stat_function(
-    fun = dnorm,
-    args = list(
-      mean = mean(SessionKM_residuals$.resid),
-      sd = sd(SessionKM_residuals$.resid)
-    ),
-    linewidth = 1,
-    color = "black",
-    linetype = "dashed"
-  ) +
-  labs(
-    x = "Residuals",
-    y = "Density"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-# QQ line
-qqplot_km <- ggplot(SessionKM_residuals, aes(sample = .resid)) +
-  stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
-  stat_qq_line(color = "black", linetype = "dashed") +
-  labs(
-    x = "Theoretical Quantiles",
-    y = "Sample Quantiles"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-# Linearity
-facet_df <- long_df %>%
-  select(
-    SessionKM_lead1,
-    Pride_cm_centered,
-    PA_cm_centered,
-    Dynamics_centered,
-    Locus_centered,
-    Globality_centered,
-    Affiliation_centered,
-    Achievement_centered,
-    Power_centered
-  ) %>%
-  pivot_longer(
-    cols = -SessionKM_lead1,
-    names_to = "Prädiktor",
-    values_to = "Wert"
-  )
-
-linearity_plot <- ggplot(facet_df, aes(x = Wert, y = SessionKM_lead1)) +
-  geom_point(alpha = 0.4, color = "grey40") +
-  geom_smooth(method = "loess", se = FALSE, color = "firebrick", linewidth = 1) +
-  facet_wrap(~ Prädiktor, scales = "free_x") +
-  labs(
-    x = "Predictors (centered)",
-    y = "Training Distance"
-  ) +
-  theme_minimal(base_size = 16)
-
-model_SessionKM_3_lmer <- lmer(
-  SessionKM_lead1 ~ 
-    Pride_cm_centered * PA_cm_centered +
-    Pride_cm_centered * Dynamics_centered +
-    Pride_cm_centered * Locus_centered +
-    Pride_cm_centered * Globality_centered +
-    Pride_cm_centered * Affiliation_centered +
-    Pride_cm_centered * Achievement_centered +
-    Pride_cm_centered * Power_centered +
-    (1 | ID),
-  data = long_df,
-  na.action = na.omit,
-  REML = TRUE
-)
-
-vif_KM_min <- vif(model_SessionKM_3_lmer) %>% min() %>% round(2)
-vif_KM_max <- vif(model_SessionKM_3_lmer) %>% max() %>% round(2)
-
-###### Tests of normality ###############################################
-
-#### Test for the Attribution Model #####
-ntest_shapiro_km <- shapiro.test(SessionKM_residuals$.resid)  
-ntest_ks_km <- ks.test(SessionKM_residuals$.resid, "pnorm", mean(SessionKM_residuals$.resid), sd(SessionKM_residuals$.resid), exact = T)
-
-##### Testing for homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
-
-resid_plot_km <- ggplot(data = SessionKM_residuals, aes(x = .fitted, y = .resid)) +
-  geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    x = "Fitted Values",
-    y = "Residuals",
-    title = NULL
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-# Outliers (All)
-ggplot(data = SessionKM_residuals, aes(y = .resid)) + theme_gray() + geom_boxplot()
-
-# Outliers per individual
-outl_plot_km <- ggplot(SessionKM_residuals, aes(x = .resid, group = ID)) +
-  geom_boxplot(outlier.shape = 21, outlier.fill = "gray80", outlier.color = "black", outlier.size = 2) +
-  labs(
-    y = "Individual No.",
-    x = "Residuals"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-#### Examining model quality on level 2: Normal distribution, homoscedasticity of residuals
-# Extract Level-2 residuals
-KM_residuals_level2 <- hlm_resid(model_SessionKM_3, level = "ID", include.ls = FALSE)
-
-ggplot(data = KM_residuals_level2, aes(.ranef.intercept)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 20) + 
-  stat_function(
-    fun = dnorm,
-    args = list(
-      mean = mean(KM_residuals_level2$.ranef.intercept),
-      sd = sd(KM_residuals_level2$.ranef.intercept)
-    ), 
-    size = 2
-  )
-
-# Shapiro-Wilk Test: Are level 2 residuals normally distributed?
-level2.resids.shapirotest_km <- shapiro.test(KM_residuals_level2$.ranef.intercept)
-
-# Extract Level-2 random effects
-l2_residuen <- ranef(model_SessionKM_3) %>%
-  tibble::rownames_to_column(var = "ID") %>%
-  rename(ranef_intercept = `(Intercept)`)
-
-fixefs <- fixef(model_SessionKM_3)
-
-# Compute Level-2 predictor means (aggregated to person level)
-l2_preds <- long_df %>%
-  group_by(ID) %>%
-  summarise(
-    Pride_cm_centered = mean(Pride_cm_centered, na.rm = TRUE),
-    PA_cm_centered = mean(PA_cm_centered, na.rm = TRUE),
-    Dynamics_centered = mean(Dynamics_centered, na.rm = TRUE),
-    Locus_centered = mean(Locus_centered, na.rm = TRUE),
-    Globality_centered = mean(Globality_centered, na.rm = TRUE),
-    Affiliation_centered = mean(Affiliation_centered, na.rm = TRUE),
-    Achievement_centered = mean(Achievement_centered, na.rm = TRUE),
-    Power_centered = mean(Power_centered, na.rm = TRUE)
-  ) %>%
-  mutate(ID = as.character(ID))
-
-l2_preds <- l2_preds %>%
-  mutate(
-    `Pride_cm_centered:PA_cm_centered` = Pride_cm_centered * PA_cm_centered,
-    `Pride_cm_centered:Dynamics_centered` = Pride_cm_centered * Dynamics_centered,
-    `Pride_cm_centered:Locus_centered` = Pride_cm_centered * Locus_centered,
-    `Pride_cm_centered:Globality_centered` = Pride_cm_centered * Globality_centered,
-    `Pride_cm_centered:Affiliation_centered` = Pride_cm_centered * Affiliation_centered,
-    `Pride_cm_centered:Achievement_centered` = Pride_cm_centered * Achievement_centered,
-    `Pride_cm_centered:Power_centered` = Pride_cm_centered * Power_centered
-  )
-
-# Predict person-level average outcome based on fixed effects
-l2_preds <- l2_preds %>%
-  mutate(
-    pred =
-      fixefs["(Intercept)"] +
-      fixefs["Pride_cm_centered"] * `Pride_cm_centered` +
-      fixefs["PA_cm_centered"] * `PA_cm_centered` +
-      fixefs["Dynamics_centered"] * `Dynamics_centered` +
-      fixefs["Locus_centered"] * `Locus_centered` +
-      fixefs["Globality_centered"] * `Globality_centered` +
-      fixefs["Affiliation_centered"] * `Affiliation_centered` +
-      fixefs["Achievement_centered"] * `Achievement_centered` +
-      fixefs["Power_centered"] * `Power_centered` +
-      fixefs["Pride_cm_centered:PA_cm_centered"] * `Pride_cm_centered:PA_cm_centered` +
-      fixefs["Pride_cm_centered:Dynamics_centered"] * `Pride_cm_centered:Dynamics_centered` +
-      fixefs["Pride_cm_centered:Locus_centered"] * `Pride_cm_centered:Locus_centered` +
-      fixefs["Pride_cm_centered:Globality_centered"] * `Pride_cm_centered:Globality_centered` +
-      fixefs["Pride_cm_centered:Affiliation_centered"] * `Pride_cm_centered:Affiliation_centered` +
-      fixefs["Pride_cm_centered:Achievement_centered"] * `Pride_cm_centered:Achievement_centered` +
-      fixefs["Pride_cm_centered:Power_centered"] * `Pride_cm_centered:Power_centered`
-  )
-
-l2_preds <- l2_preds %>%
-  mutate(ID = as.character(ID))
-
-# Strip the custom class attribute
-class(l2_residuen) <- "data.frame"
-
-# Join predicted values and Level-2 residuals
-plot_df <- left_join(l2_preds, l2_residuen, by = "ID")
-
-# Plot
-diag_plot_lvl2_KM <- ggplot(plot_df, aes(x = pred, y = ranef_intercept)) +
-  geom_point() +
-  theme_minimal() +
-  labs(x = "Predicted Level 2 - Values", y = "Random Intercepts")
-
-### Statistical test
-bp_test_km <- bptest(ranef_intercept ~ pred, data = plot_df)
-```
 
 ```{r HLM Table and graphs for H (Duration)}
 #| include: false
@@ -1491,7 +1101,7 @@ linearity_plot_h <- ggplot(facet_df, aes(x = Wert, y = SessionH_lead1)) +
   facet_wrap(~ Prädiktor, scales = "free_x") +
   labs(
     x = "Predictors (centered)",
-    y = "Training Distance"
+    y = "Training Duration"
   ) +
   theme_minimal(base_size = 16)
 
@@ -1768,30 +1378,17 @@ Rsquared_rpe<-r.squaredGLMM(model_SessionRPE_3)
 
 ```{r Variograms}
 
-variogram_km  <-nlme::Variogram(model_SessionKM_3, 
-                                form = ~ Time | ID)
-
 variogram_h   <-nlme::Variogram(model_SessionH_3, 
                                 form = ~ Time | ID)
 
 variogram_rpe <-nlme::Variogram(model_SessionRPE_3, 
                                 form = ~ Time | ID)
 
-variogram_km_graph <-ggplot(variogram_km, aes(x = dist, y = variog)) +
-  geom_point(size = 3) +
-  geom_line() +
-  labs(
-    title = "Variogram: SessionKM",
-    x = "Lag (distance between observations)",
-    y = "Semivariance"
-  ) +
-  theme_minimal()
-
 variogram_h_graph <- ggplot(variogram_h, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionKM",
+    title = "Variogram: SessionH",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
@@ -1801,7 +1398,7 @@ variogram_rpe_graph <-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionKM",
+    title = "Variogram: SessionRPE",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
@@ -1905,7 +1502,7 @@ linearity_plot_rpe <- ggplot(facet_df, aes(x = Wert, y = SessionRPE_lead1)) +
   facet_wrap(~ Prädiktor, scales = "free_x") +
   labs(
     x = "Predictors (centered)",
-    y = "Training Distance"
+    y = "Training RPE"
   ) +
   theme_minimal(base_size = 16)
 
@@ -2084,7 +1681,7 @@ Because time‑varying predictors (pride and positive affect) had already been c
 The stable predictors (attribution style, implicit motives) had been grand‑mean‑centred, so their z‑standardised versions represent between‑person deviations of one standard deviation from the sample mean.
 Coefficients of interaction terms therefore indicate the change in the outcome per one standard‑deviation increase in the moderator, at a given level of pride.
 
-The results for the hierarchical linear models are presented separately for each of the dependent variables of this study: session distance, session duration and rate of perceived exhaustion.
+The results for the hierarchical linear models are presented separately for each of the dependent variables of this study: session duration and rate of perceived exhaustion.
 We used interaction terms of pride with positive affect, causal attribution and implicit motives to predict these dependent variables.
 The predictors were added in three steps: First, the interaction term of pride and positive affect, second, the interaction terms of pride and attribution styles, and third, interaction terms of pride and implicit motives.
 We then decided on the appropriate model based on fit indices (AIC, BIC, log-likelihood, marginal/conditional R²) and explanatory power, and then examined the model quality, checking for normal distribution of residuals by inspection of Q-Q plots and Shapiro-Wilk-tests, homoscedasticity by examination of residual plots, absence of multicollinearity by calculation of the variance inflation factor, and linearity and distribution of outliers by visual inspection.
@@ -2108,96 +1705,6 @@ Missing values amounted to `r missings_percentage_study2`% of all data.
 (see article)
 
 ## Results
-
-## Session distance
-
-The session distance was z-standardized within certain session speed groups.
-If the time and distance that was reported for one session was less than five, it was classified as *swimming*, between five and 20km/h was classified as *running*, and if the speed was over 20km/h, it was classified as *cycling*.
-The result is presented in @tbl-hlmtable_km.
-
-The intraclass correlation coefficient was *ICC* = `r icc_km[1]$ICC_adjusted %>% round (2)`.
-The autoregressive parameter was φ = `r autocorr_param_KM_CI_est %>% round(2)`, 95% CI \[`r autocorr_param_KM_CI_lower %>% round(2)`, `r autocorr_param_KM_CI_upper %>% round(3)`\], indicating a tendency that higher values were followed by lower values of session distance, and vice versa.
-Model 3 included significant predictors and the highest log-likelihood, it also fit significantly better than the same model without a correlation matrix (χ² = `r corAR_test_km$L.Ratio[2] %>% round(2)`, df = `r corAR_test_km$df[1] - corAR_test_km$df[2] `; *p* `r corAR_test_km$"p-value"[2] %>% format_p()`).
-Although the null model had a lower AIC overall, we retained Model 3 for further analysis of statistical assumptions because our goal was to test the hypothesized interactions.
-
-The residuals were normally distributed (*p* `r ntest_shapiro_km  $p.value %>% format_p()` ).
-@fig-sessionkm_assumptions shows a QQ-plot and scatterplot of the residuals.
-Here, the residuals are skewed to the left, indicating a slight deviation from the assumption of homoscedasticity.
-
-The variance inflation factor ranged from *vif~min~* = `r vif_KM_min` to *vif~max~* = `r vif_KM_max`.
-
-@fig-linearity shows substantial deviations from linearity.
-@fig-outliers shows the distribution of outliers in the residuals by each individual.
-
-The marginal and conditional R-squared values, representing the portion of variance explained by the fixed effects and the random effects respectively, were *R^2^~marginal~* = `r Rsquared_km[1] %>% round(2)` and *R^2^~conditional~* = `r Rsquared_km[2] %>% round(3)`.
-
-On the individual level (level 2), a shapiro-wilk-test showed that residuals were not normally distributed (*p* `r level2.resids.shapirotest_km$p.value %>% format_p()`).
-The distribution of residuals in @fig-sessionkm_assumptions_lvl2 show no serious violation of homoscedasticity.
-
-```{r}
-#| label: tbl-hlmtable_km
-#| tbl-cap: Hierarchical Linear Model Coefficients Predicting Session Distance
-#| apa-note: The time varying predictors—Pride and Positive Affect— were cluster-mean-centered, fixed predictors were grand mean centered.
-hlmtable
-
-# Reporting specific parameters:
-
-summary_model_SessionKM_3<-summary(model_SessionKM_3)
-b_prideXpa_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:PA_cm_centered", "Value"]
-p_prideXpa_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:PA_cm_centered", "p-value"]
-b_prideXglobality_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Globality_centered", "Value"]
-p_prideXglobality_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Globality_centered", "p-value"]
-b_prideXachievement_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Achievement_centered", "Value"]
-p_prideXachievement_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Achievement_centered", "p-value"]
-b_prideXaffiliation_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Affiliation_centered", "Value"]
-p_prideXaffiliation_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Affiliation_centered", "p-value"]
-b_prideXpower_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Power_centered", "Value"]
-p_prideXpower_km <- summary_model_SessionKM_3$tTable["Pride_cm_centered:Power_centered", "p-value"]
-```
-
-Several interaction terms emerged as significant predictors: The interactions between pride and positive affect (*b* = `r b_prideXpa_km %>% round(2)`, *p* `r p_prideXpa_km %>% format_p()`), and achievement motive (*b* = `r b_prideXachievement_km %>% round(2)`, *p* `r p_prideXachievement_km %>% format_p()`) were positive, meaning that the effect of pride on the training distance in the *next* session is stronger when there is a high achievement motive or a high positive affect (in the previous session).
-The interaction terms between pride and globality (*b* = `r b_prideXglobality_km %>% round(3)`, *p* `r p_prideXglobality_km %>% format_p()`), the affiliation motive (*b* = `r b_prideXaffiliation_km %>% round(2)`, *p* = `r p_prideXaffiliation_km %>% format_p()`) and the power motive (*b* = `r b_prideXpower_km %>% round(2)`, *p* `r p_prideXpower_km %>% format_p()`) were negative: When globality, affiliation or power are high, pride reduced the session distance in the next session.
-
-```{r}
-#| label: fig-sessionkm_assumptions
-#| fig-cap: QQ-Plot and Scatterplot of Residuals for the HLM Predicting Session Distance
-#| apa-note: The residuals follow the straight line in the QQ-plot, indicating normal distribution. An even spread in the scatterplots indicates homoscedasticity, here a slight deviation from this assumption is present, with residuals concentrated in the lower range.
-#| fig-height: 10
-#| fig-width: 10
-(qqplot_km + resid_plot_km)
-  
-```
-
-```{r}
-#| label: fig-linearity
-#| fig-cap: Predictors plottet against the target variable (Session Distance) with LOESS smoothing
-#| apa-note: None of the predictors show a strictly linear association with the target variable. 
-#| fig-height: 10
-#| fig-width: 10
-#| warning: false
-linearity_plot
-```
-
-```{r}
-#| label: fig-outliers
-#| fig-cap: Outliers of residuals for each individual
-#| apa-note: Outliers are shown as grey circle. Here, no outliers are present. 
-#| fig-height: 10
-#| fig-width: 10
-outl_plot_km
-  
-```
-
-```{r}
-#| label: fig-sessionkm_assumptions_lvl2
-#| fig-cap: Residuals on level 2 
-#| apa-note:  The residuals plotted against random intercepts appear as unsystematic cloud, indicating homoscedasticity.
-#| fig-height: 10
-#| fig-width: 10
-
-diag_plot_lvl2_KM
-  
-```
 
 ## Session duration
 
@@ -2233,7 +1740,7 @@ hlmtable_h
 
 ```{r}
 #| label: fig-sessionh_assumptions
-#| fig-cap: QQ-Plot and Scatterplot of Residuals for the HLM predicting Session Distance
+#| fig-cap: QQ-Plot and Scatterplot of Residuals for the HLM predicting Session Duration
 #| apa-note:  The residuals follow the straight line in the QQ-plot, indicating normal distribution. An even spread in the scatterplots indicates homoscedasticity, here a slight deviation from this assumption is present, with residuals concentrated in the lower range of training time.
 #| fig-height: 10
 #| fig-width: 10
@@ -2253,7 +1760,7 @@ outl_plot_h
 
 ```{r}
 #| label: fig-linearity_h
-#| fig-cap: Predictors plottet against the target variable  with LOESS smoothing
+#| fig-cap: Predictors plotted against the target variable  with LOESS smoothing
 #| fig-height: 10
 #| fig-width: 10
 #| warning: false
@@ -2275,9 +1782,9 @@ diag_plot_lvl2_H
 ## Session Rate of Perceived Exhaustion
 
 The regression coefficients are shown in @tbl-hlmtable_rpe.
-The null model revealed an **ICC** of `r icc_rpe[1]$ICC_adjusted %>% round (3)`. The third model with all predictors shows the highest log-likelihood, although the null model had a lower AIC.
+The null model revealed an *ICC* of `r icc_rpe[1]$ICC_adjusted %>% round (3)`. The third model with all predictors shows the highest log-likelihood, although the null model had a lower AIC.
 With φ = `r autocorr_param_RPE_CI_est %>% round(2)`, 95% CI \[`r autocorr_param_RPE_CI_lower %>% round(2)`, `r autocorr_param_RPE_CI_upper %>% round(2)`\], a correlation matrix resulted in a worse fit ( *p* `r intercorr_test_rpe$"p-value"[2] %>% format_p()`).
-As with session distance, we retained Model 3 because our goal was to test the hypothesized interactions rather than to minimise AIC.
+We retained Model 3 because our goal was to test the hypothesized interactions rather than to minimise AIC.
 
 A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive.
 Only the interaction between pride and the implicit achievement motive predicted a higher rate of perceived exhaustion for each session.
@@ -2341,7 +1848,7 @@ If the achievement motive was high, higher pride also predicted a higher RPE (*b
 #| fig-height: 10
 #| fig-width: 10
 #| warning: false
-linearity_plot
+linearity_plot_rpe
   
 ```
 
