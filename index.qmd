@@ -684,6 +684,17 @@ pwr_result <- pwr.r.test(n = NULL,
 
 SessionKM_shapirotest_after_z<-shapiro.test(df_study2$WeeklyKM_base)
 
+
+#### Speed diagnostic for Study 2 ####
+## Pool all session-level speed values to quantify how many exceed the plausible
+## range for running (> 20 km/h). Used in the "Data preparation" paragraph in
+## the Study 2 Analysis section.
+speed_values <- c(df_study2$Speed_1, df_study2$Speed_2, df_study2$Speed_3,
+                  df_study2$Speed_4, df_study2$Speed_5, df_study2$Speed_6)
+n_speed_obs          <- sum(!is.na(speed_values))
+n_implausible_speed  <- sum(speed_values > 20, na.rm = TRUE)
+pct_implausible_speed <- round(n_implausible_speed / n_speed_obs * 100, 1)
+
 ```
 
 ```{r tables study 1}
@@ -694,7 +705,7 @@ SessionKM_shapirotest_after_z<-shapiro.test(df_study2$WeeklyKM_base)
 pride_variables<-c("Pride_base", "Hubris_base")
 base_training_and_affect_variables<-df_study1 %>% ungroup() %>% select(ends_with("_base"), -matches("Pride_base|Hubris_base|WeeklyKM_base")) %>% names() 
 motive_variables <- c("Achievement", "Affiliation", "Power", df_study1 %>% ungroup() %>% select(starts_with("Gen_")) %>% names())
-attrib_variables <- c("Locus", "Dynamics", "Controlability_self")# 
+attrib_variables <- c("Locus", "Dynamics","Globality")# 
 correlation_variables<-c( pride_variables,base_training_and_affect_variables,motive_variables,attrib_variables)
 
 df_stat<-get_descriptive_table(df_study1[, correlation_variables], language = "English")
@@ -717,7 +728,7 @@ df_stat$Variable <- c(
     "15. Fear of Loss of Control",
     "16. Locus",
     "17. Dynamics",
-    "18. Controllability"
+    "18. Globality"
 )
 
 table_stat<-df_stat %>% flextable() %>% flextable::theme_apa() %>% autofit()
@@ -748,7 +759,7 @@ corr_table<-df_study1[,correlation_variables] %>%
     "15. Fear of Loss of Control",
     "16. Locus",
     "17. Dynamics",
-    "18. Controllability"
+    "18. Globality"
   ))
 
 
@@ -851,7 +862,7 @@ For the analysis, Version `r R.Version()$major`.`r R.Version()$minor` of the pro
 
 ```{r}
 #| label: tbl-stat
-#| tbl-cap: "Descriptive statistics: Mean values with standard deviation and skewness kurtosis for all investigated variables"
+#| tbl-cap: "Descriptive statistics: Mean values with standard deviation, skewness and kurtosis for all investigated variables"
 #| apa-note: '*N* = 32'
 table_stat
 ```
@@ -891,8 +902,8 @@ Correlation Plot showing Spearman Rho coefficients between investigated variable
 
 ```{r}
 #| label: fig-violin
-#| fig-cap: Violin Plot with embedded boxplots for all variables
-#| apa-note: The "X" represents the mean. Outliers are shown as grey diamonds. 
+#| fig-cap: "Violin Plot with Embedded Boxplots for All Study 1 Variables"
+#| apa-note: "Each panel displays the distribution of one variable. The X marks the mean, the horizontal line inside each box marks the median, and grey diamonds indicate outliers. The width of the violin reflects the density of observations at each value."
 #| fig-height: 15
 #| fig-width: 10
 violin_plots
@@ -900,8 +911,8 @@ violin_plots
 
 ```{r}
 #| label: fig-corrplot
-#| fig-cap: Correlation Plot showing Spearman Rho coefficients between investigated variables.
-#| apa-note:  Bullets depict significant correlations (p < .05) and show positive (darker blue tones) or negative (darker red tones) correlations. Spearman's rank correlation coefficient was used. 
+#| fig-cap: "Correlation Plot Showing Spearman Rho Coefficients Between Study 1 Variables"
+#| apa-note: "Bullets depict significant correlations (p < .05) and show positive (blue tones) or negative (red tones) correlations. Spearman's rank correlation coefficient was used because several variables violated the normality assumption."
 #| fig-height: 10
 #| fig-width: 10
 heatmap
@@ -1377,6 +1388,7 @@ Rsquared_rpe<-r.squaredGLMM(model_SessionRPE_3)
 ```
 
 ```{r Variograms}
+#| include: false
 
 variogram_h   <-nlme::Variogram(model_SessionH_3, 
                                 form = ~ Time | ID)
@@ -1388,7 +1400,7 @@ variogram_h_graph <- ggplot(variogram_h, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionH",
+    title = "Variogram: Session Duration",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
@@ -1398,7 +1410,7 @@ variogram_rpe_graph <-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
   geom_point(size = 3) +
   geom_line() +
   labs(
-    title = "Variogram: SessionRPE",
+    title = "Variogram: Session RPE",
     x = "Lag (distance between observations)",
     y = "Semivariance"
   ) +
@@ -1671,7 +1683,7 @@ bp_test_rpe <- bptest(ranef_intercept ~ pred, data = plot_df)
 We excluded participants manually if they reported data on less than two training sessions or if they did not participate in a structured training program.
 Subsequent analyses were performed using the R language [@rlanguage2024].
 Since the questionnaires were sent out in weekly intervals, we expected autocorrelation between measurement points.
-The variograms for all models indicated that autoregressive noise was present: The semivariance changed substantially with distance between observations.
+The variograms for all models indicated that autoregressive noise was present: The semivariance changed substantially with distance between observations (see @fig-variogram_h and @fig-variogram_rpe for the two retained models).
 Thus, we computed autoregressive parameters and included an autocorrelation structure of order 1 (AR1) in the model, unless it resulted in a worse model fit.
 
 Time was not included as predictor, since we did not expect a trend over time.
@@ -1688,10 +1700,37 @@ We then decided on the appropriate model based on fit indices (AIC, BIC, log-lik
 Linearity was assessed by plotting each predictor against the outcome variable and examining LOESS-smoothed lines.
 On the individual level 2, we assessed normality of residuals and homoscedasticity.
 
+### Data preparation: session distance
+
+Although session distance was initially collected as a training parameter, it was not analysed for two reasons.
+First, some participants reported distances for sports other than running (e.g., cycling or swimming), which makes a common distance scale inappropriate across participants.
+To examine the plausibility of these data, we computed session speed from the reported duration and distance.
+Of the `r n_speed_obs` sessions with complete distance and duration information, `r n_implausible_speed` sessions (`r pct_implausible_speed`%) yielded speeds that are implausible for running (i.e., > 20 km/h), indicating that a substantial portion of the reported distances referred to other sports.
+Second, distance is not directly comparable across these sport types in a single outcome variable without a sport-specific transformation, which we considered to be beyond the scope of the present study.
+We therefore decided to exclude session distance as a training parameter from the analysis and to focus on session duration and perceived exercise intensity, which are comparable across the endurance sports represented in our sample.
+
+```{r}
+#| label: fig-variogram_h
+#| fig-cap: "Sample Variogram of the Session Duration Model"
+#| apa-note: "The semivariance is plotted against the lag (distance between observations in sessions). Increasing semivariance with lag indicates autocorrelation between measurement points, which justified including an AR(1) correlation structure in the model. The shape here reflects the modest autocorrelation coefficient (φ ≈ 0) reported in the Session duration results."
+#| fig-height: 5
+#| fig-width: 7
+variogram_h_graph
+```
+
+```{r}
+#| label: fig-variogram_rpe
+#| fig-cap: "Sample Variogram of the Session RPE Model"
+#| apa-note: "The semivariance is plotted against the lag. Non-flat semivariance indicates autocorrelation between sessions, which is why an AR(1) structure was considered. For the RPE model, including the AR(1) structure did not improve fit, so the model without it was retained."
+#| fig-height: 5
+#| fig-width: 7
+variogram_rpe_graph
+```
+
 ## Participants
 
 After completing study 1, participants were invited to report on six of their following training sessions.
-The resulting final sample consisted of *N* = `r filtered_n_s2` recreational athletes who had a mean age of `r descriptives_list_study2$Age_mean %>% round(2)` years (*SD* = `r descriptives_list_study2$Age_sd %>% round(2)`; range = `r descriptives_list_study2$Age_min`–`r descriptives_list_study2$Age_max`), including `r n_female_study2` females, `r n_male_study2` males, and `r n_diverse_study2` participants who identified as diverse.
+The resulting final sample consisted of *N* = `r filtered_n_s2` recreational athletes who had a mean age of `r descriptives_list_study2$Age_mean %>% round(2)` years (*SD* = `r descriptives_list_study2$Age_sd %>% round(2)`; range = `r descriptives_list_study2$Age_min`–`r descriptives_list_study2$Age_max`), including `r n_female_study2` females, `r numbers_to_words(n_male_study2)` males, and `r numbers_to_words(n_diverse_study2)` participants who identified as diverse.
 Participants followed individual workout routines averaging `r descriptives_list_study2$WeeklyH_base_mean %>% round(2)` hours per week (*SD* = `r descriptives_list_study2$WeeklyH_base_sd %>% round(2)`; range = `r descriptives_list_study2$WeeklyH_base_min`–`r descriptives_list_study2$WeeklyH_base_max`) with a self-rated intensity (perceived exertion on a 1-10 scale) of `r descriptives_list_study2$WeeklyRPE_base_mean %>% round(2)` (*SD* = `r descriptives_list_study2$WeeklyRPE_base_sd %>% round(2)`).
 Sports included running (*n* = `r n_running_s2`), triathlon (*n* = `r n_triathlon_s2`), weight training (*n* = `r n_weight_s2`), and other endurance sports (*n* = `r n_other_sports_s2`).
 Missing values amounted to `r missings_percentage_study2`% of all data.
@@ -1712,7 +1751,7 @@ The parameters for this model that predicted session duration are shown in @tbl-
 The ICC was *ICC* = `r icc_h$ICC_adjusted[1] %>% round(2)`.
 
 None of the models identified significant predictors of session duration.
-With an autoregressive coefficient of φ = `r autocorr_param_H_CI_est %>% round(2)`, 95% CI \[`r autocorr_param_H_CI_lower %>% round(2)`, `r autocorr_param_H_CI_upper %>% round(2)`\], modelling autocorrelation resulted in a slightly better model fit.
+With an autoregressive coefficient of φ = `r autocorr_param_H_CI_est %>% round(3)`, 95% CI \[`r autocorr_param_H_CI_lower %>% round(2)`, `r autocorr_param_H_CI_upper %>% round(2)`\], modelling autocorrelation resulted in a slightly better model fit.
 However, the improvement was not significant (*p* `r corAR_test_h$"p-value"[2] %>% format_p()`).
 Yet, the model with the correlation matrix (Model 3) was retained for further examination, because autocorrelation is expected due to repeated measures.
 
@@ -1740,8 +1779,8 @@ hlmtable_h
 
 ```{r}
 #| label: fig-sessionh_assumptions
-#| fig-cap: QQ-Plot and Scatterplot of Residuals for the HLM predicting Session Duration
-#| apa-note:  The residuals follow the straight line in the QQ-plot, indicating normal distribution. An even spread in the scatterplots indicates homoscedasticity, here a slight deviation from this assumption is present, with residuals concentrated in the lower range of training time.
+#| fig-cap: "Diagnostic Plots for the HLM Predicting Session Duration"
+#| apa-note: "Left panel: Q-Q plot of the model residuals. Points close to the diagonal dashed line indicate approximate normality. Right panel: residuals plotted against fitted values. An even spread around the horizontal zero line indicates homoscedasticity; here a slight deviation is visible, with residuals concentrated in the lower range of training time."
 #| fig-height: 10
 #| fig-width: 10
 (qqplot_h + resid_plot_h)
@@ -1750,8 +1789,8 @@ hlmtable_h
 
 ```{r}
 #| label: fig-outliers_h
-#| fig-cap: Outliers of residuals for each individual
-#| apa-note:  Outliers are shown as grey circle
+#| fig-cap: "Distribution of Residuals per Participant for the Session Duration Model"
+#| apa-note: "Each boxplot summarises the residuals for one participant across the six training sessions. Outliers (points beyond 1.5 IQR) are shown as grey circles. Two such outliers are visible in the plot."
 #| fig-height: 10
 #| fig-width: 10
 outl_plot_h
@@ -1760,7 +1799,8 @@ outl_plot_h
 
 ```{r}
 #| label: fig-linearity_h
-#| fig-cap: Predictors plotted against the target variable  with LOESS smoothing
+#| fig-cap: "Linearity Check for the Session Duration Model: Predictors Plotted Against Session Duration with LOESS Smoothing"
+#| apa-note: "Each panel plots one centred predictor (x-axis) against session duration in the subsequent session (y-axis). The red line is a LOESS smoother; systematic curvature would indicate a departure from linearity. None of the predictors show a strictly linear association, which is expected given the interaction terms in the model."
 #| fig-height: 10
 #| fig-width: 10
 #| warning: false
@@ -1770,8 +1810,8 @@ linearity_plot_h
 
 ```{r}
 #| label: fig-sessionh_assumptions_lvl2
-#| fig-cap: Residuals on level 2 
-#| apa-note:  The residuals plotted against random intercepts appear as unsystematic cloud, indicating homoscedasticity.
+#| fig-cap: "Level-2 Diagnostics for the Session Duration Model: Predicted Values vs. Random Intercepts"
+#| apa-note: "Each point represents one participant. The x-axis shows the person-level predicted values based on the fixed effects; the y-axis shows the model-estimated random intercept for that participant. An unstructured cloud around zero indicates homoscedasticity at Level 2; systematic patterns (e.g., a funnel shape) would indicate violations."
 #| fig-height: 10
 #| fig-width: 10
 
@@ -1783,7 +1823,7 @@ diag_plot_lvl2_H
 
 The regression coefficients are shown in @tbl-hlmtable_rpe.
 The null model revealed an *ICC* of `r icc_rpe[1]$ICC_adjusted %>% round (3)`. The third model with all predictors shows the highest log-likelihood, although the null model had a lower AIC.
-With φ = `r autocorr_param_RPE_CI_est %>% round(2)`, 95% CI \[`r autocorr_param_RPE_CI_lower %>% round(2)`, `r autocorr_param_RPE_CI_upper %>% round(2)`\], a correlation matrix resulted in a worse fit ( *p* `r intercorr_test_rpe$"p-value"[2] %>% format_p()`).
+With φ = `r autocorr_param_RPE_CI_est %>% round(3)`, 95% CI \[`r autocorr_param_RPE_CI_lower %>% round(2)`, `r autocorr_param_RPE_CI_upper %>% round(2)`\], a correlation matrix resulted in a worse fit ( *p* `r intercorr_test_rpe$"p-value"[2] %>% format_p()`).
 We retained Model 3 because our goal was to test the hypothesized interactions rather than to minimise AIC.
 
 A more stable attribution style predicted a lower RPE, and so did the interaction terms of pride with positive affect, pride with a more external locus of control, pride with a higher implicit affiliation as well as a higher power motive.
@@ -1811,21 +1851,20 @@ hlmtable_rpe
 
 # Reporting specific parameters with p-values:
 
-summary_model_SessionRPE_4 <-summary(model_SessionRPE_4)
-b_dynamics_rpe <- summary_model_SessionRPE_4$tTable["Dynamics_centered", "Value"]
-p_dynamics_rpe <- summary_model_SessionRPE_4$tTable["Dynamics_centered", "p-value"]
-b_prideXpa_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:PA_cm_centered", "Value"]
-p_prideXpa_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:PA_cm_centered", "p-value"]
-b_prideXlocus_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Locus_centered", "Value"]
-p_prideXlocus_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Locus_centered", "p-value"]
-b_prideXglobality_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Globality_centered", "Value"]
-p_prideXglobality_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Globality_centered", "p-value"]
-b_prideXachievement_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Achievement_centered", "Value"]
-p_prideXachievement_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Achievement_centered", "p-value"]
-b_prideXaffiliation_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Affiliation_centered", "Value"]
-p_prideXaffiliation_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Affiliation_centered", "p-value"]
-b_prideXpower_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Power_centered", "Value"]
-p_prideXpower_rpe <- summary_model_SessionRPE_4$tTable["Pride_cm_centered:Power_centered", "p-value"]
+# AFTER
+summary_model_SessionRPE_3 <- summary(model_SessionRPE_3)
+b_dynamics_rpe      <- summary_model_SessionRPE_3$tTable["Dynamics_centered", "Value"]
+p_dynamics_rpe      <- summary_model_SessionRPE_3$tTable["Dynamics_centered", "p-value"]
+b_prideXpa_rpe      <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:PA_cm_centered", "Value"]
+p_prideXpa_rpe      <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:PA_cm_centered", "p-value"]
+b_prideXlocus_rpe   <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Locus_centered", "Value"]
+p_prideXlocus_rpe   <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Locus_centered", "p-value"]
+b_prideXachievement_rpe <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Achievement_centered", "Value"]
+p_prideXachievement_rpe <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Achievement_centered", "p-value"]
+b_prideXaffiliation_rpe <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Affiliation_centered", "Value"]
+p_prideXaffiliation_rpe <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Affiliation_centered", "p-value"]
+b_prideXpower_rpe   <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Power_centered", "Value"]
+p_prideXpower_rpe   <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Power_centered", "p-value"]
 ```
 
 Several interaction terms emerged as significant predictors: When a person had a tendency to more stable attributions, session RPE was reduced (*b* = `r b_dynamics_rpe %>% round(3)`, *p* `r p_dynamics_rpe %>% format_p()`).
@@ -1834,8 +1873,8 @@ If the achievement motive was high, higher pride also predicted a higher RPE (*b
 
 ```{r}
 #| label: fig-sessionrpe_assumptions
-#| fig-cap: Histogram of Residuals
-#| apa-note: Deviation from the normal distribution in a QQ-Plot along with the distribution of residuals.
+#| fig-cap: "Diagnostic Plots for the HLM Predicting Session RPE"
+#| apa-note: "Left panel: Q-Q plot of the model residuals. Deviations from the diagonal dashed line indicate non-normality. Right panel: residuals plotted against fitted values. The discrete, banded structure visible here reflects the ordinal nature of the session RPE scale (0-10) and is not indicative of a serious modelling problem."
 #| fig-height: 10
 #| fig-width: 10
 (qqplot_rpe + resid_plot_rpe)
@@ -1844,7 +1883,8 @@ If the achievement motive was high, higher pride also predicted a higher RPE (*b
 
 ```{r}
 #| label: fig-linearity_rpe
-#| fig-cap: Predictors plotted against the target variable  with LOESS smoothing
+#| fig-cap: "Linearity Check for the Session RPE Model: Predictors Plotted Against Session RPE with LOESS Smoothing"
+#| apa-note: "Each panel plots one centred predictor (x-axis) against session RPE in the subsequent session (y-axis). The red line is a LOESS smoother. Because session RPE is measured on a discrete 0-10 scale, some banding is expected."
 #| fig-height: 10
 #| fig-width: 10
 #| warning: false
@@ -1854,8 +1894,8 @@ linearity_plot_rpe
 
 ```{r}
 #| label: fig-sessionrpe_assumptions_lvl2
-#| fig-cap: Residuals on level 2 
-#| apa-note:  The residuals plotted against random intercepts appear as unsystematic cloud, indicating homoscedasticity.
+#| fig-cap: "Level-2 Diagnostics for the Session RPE Model: Predicted Values vs. Random Intercepts"
+#| apa-note: "Each point represents one participant. The x-axis shows the person-level predicted values based on the fixed effects; the y-axis shows the model-estimated random intercept for that participant. An unstructured cloud around zero indicates homoscedasticity at Level 2."
 #| fig-height: 10
 #| fig-width: 10
 
@@ -1874,5 +1914,5 @@ diag_plot_lvl2_RPE
 <!-- References will auto-populate in the refs div below -->
 
 ::: {#refs}
-# 
+
 :::
