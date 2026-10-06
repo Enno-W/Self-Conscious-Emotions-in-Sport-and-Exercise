@@ -787,7 +787,7 @@ custom_labels <- c(
     "Gen_LossControl_fear" = "15. Fear of Loss of Control", 
     "Locus" = "16. Locus", 
     "Dynamics" = "17. Dynamics", 
-    "Controlability_self" = "18. Self-Controllability"
+    "Globality" = "18. Globality"
 )
 
 #print_all_histograms(df, bins_n = 30)
@@ -878,7 +878,7 @@ corr_table
 @tbl-stat presents descriptive statistics, including mean, standard deviation, skewness, and kurtosis.
 The sample represents medium authentic pride and medium positive affect, low hubristic pride and low negative affect.
 Additionally, the sample shows a slightly stronger implicit affiliation motive but regular motive components in all three implicit motives.
-Further, the sample intended to report more internal, variable, and less uncontrollable attribution styles.
+Further, the sample intended to report more internal, variable, and global attribution styles.
 @fig-violin visualizes the distribution of these variables.
 
 +++Please insert “@tbl-stat Descriptive statistics: Mean values with standard deviation and skewness and kurtosis for all investigated variables” nearby.+++
@@ -889,10 +889,10 @@ Further, the sample intended to report more internal, variable, and less uncontr
 
 Exploratory analyses revealed significant correlations between pride and positive affect (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$PA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`); pride and fear of rejection (*Ρ* = `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Pride_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`); and hubris and negative affect (*Ρ* = `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Hubris_base, df_study1$NA_base,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 The implicit affiliation motive (*Ρ* = `r cor.test(df_study1$Affiliation, df_study1$WeeklyH_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Affiliation, df_study1$WeeklyH_base,method = "spearman")$p.value %>% round (3) %>% format_p()`) and dynamic attributions (*Ρ* = `r cor.test(df_study1$Dynamics, df_study1$WeeklyH_base,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Dynamics, df_study1$WeeklyH_base,method = "spearman")$p.value %>% round (3) %>% format_p()`) correlated with training duration.
-Negative affect correlated with fear of failure (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), fear of rejection (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), locus (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$p.value %>% round (3) %>% format_p()`) and controllability (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Controlability_self,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Controlability_self,method = "spearman")$p.value %>% round (3) %>% format_p()`).
+Negative affect correlated with fear of failure (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Failure_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), fear of rejection (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), locus (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Locus,method = "spearman")$p.value %>% round (3) %>% format_p()`) and globality (*Ρ* = `r cor.test(df_study1$NA_base, df_study1$Globality,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$NA_base, df_study1$Globality,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 The achievement motive correlated with the implicit affiliation motive (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Affiliation,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Achievement, df_study1$Affiliation,method = "spearman")$p.value %>% round (3) %>% format_p()`) and power motive (*Ρ* = `r cor.test(df_study1$Achievement, df_study1$Power,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Achievement, df_study1$Power,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 Furthermore, fear of failure correlated with fear of rejection (*Ρ* = `r cor.test(df_study1$Gen_Failure_fear, df_study1$Gen_Rejection_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Gen_Failure_fear, df_study1$Gen_Rejection_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`), and fear of loss of control (*Ρ* = `r cor.test(df_study1$Gen_Failure_fear, df_study1$Gen_LossControl_fear,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Gen_Failure_fear, df_study1$Gen_LossControl_fear,method = "spearman")$p.value %>% round (3) %>% format_p()`).
-Finally, controlability and locus of attributions showed a correlation (*Ρ* = `r cor.test(df_study1$Controlability_self, df_study1$Locus,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Controlability_self, df_study1$Locus,method = "spearman")$p.value %>% round (3) %>% format_p()`).
+Finally, globality and locus of attributions showed a correlation (*Ρ* = `r cor.test(df_study1$Globality, df_study1$Locus,method = "spearman")$estimate %>% round (2)`, *p* `r cor.test(df_study1$Globality, df_study1$Locus,method = "spearman")$p.value %>% round (3) %>% format_p()`).
 
 +++Please insert “@tbl-corrtable.
 Correlation matrix: Spearman Rho (Ρ) coefficients indicate correlations of investigated and significance is depicted as p-value” nearby.+++
@@ -1423,7 +1423,6 @@ variogram_rpe_graph <-ggplot(variogram_rpe, aes(x = dist, y = variog)) +
 
 # Extract Residuals
 SessionRPE_residuals <- hlm_resid(model_SessionRPE_3, level=1, include.ls = T) 
-SessionRPE_residuals_no_logtransform <- hlm_resid(model_SessionRPE_4, level=1, include.ls = T) 
 
 ########Normality Plots #####
 # Normality Plot with least square residuals
@@ -1463,20 +1462,6 @@ ndist_plot_rpe<- ggplot(data = SessionRPE_residuals, aes(.resid)) +
 # QQ line
 qqplot_rpe<-ggplot(SessionRPE_residuals, aes(sample = .resid)) +
   stat_qq(shape = 21, color = "black", fill = "gray80", size = 2) +
-  stat_qq_line(color = "black", linetype = "dashed") +
-  labs(
-    x = "Theoretical Quantiles",
-    y = "Sample Quantiles"
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-qqplot_rpe_no_logtransform <-ggplot(SessionRPE_residuals_no_logtransform, aes(sample = .resid)) +
-  stat_qq(shape = 21, color = "black", fill = "black", size = 2) +
   stat_qq_line(color = "black", linetype = "dashed") +
   labs(
     x = "Theoretical Quantiles",
@@ -1541,26 +1526,10 @@ vif_RPE_max <- vif(model_SessionRPE_3_lmer) %>% max() %>% round(2)
 
 ntest_shapiro_rpe <- shapiro.test(SessionRPE_residuals $.resid)  
 ntest_ks_rpe <- ks.test(SessionRPE_residuals $.resid, "pnorm", mean(SessionRPE_residuals $.resid), sd(SessionRPE_residuals $.resid), exact = T)
-ntest_ks_rpe_no_logtransform <- ks.test(SessionRPE_residuals_no_logtransform $.resid, "pnorm", mean(SessionRPE_residuals_no_logtransform $.resid), sd(SessionRPE_residuals_no_logtransform $.resid), exact = T)
 
 ##### Visualisation of homoscedasticity (homogeneity of variance of residuals), and outliers in the residuals####
 resid_plot_rpe<-ggplot(data = SessionRPE_residuals, aes(x = .fitted, y = .resid)) +
   geom_point(shape = 21, color = "black", fill = "gray80", size = 2) +
-  geom_hline(yintercept = 0, linetype = "dashed") +
-  labs(
-    x = "Fitted Values",
-    y = "Residuals",
-    title = NULL
-  ) +
-  theme_classic(base_size = 12) +
-  theme(
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10),
-    panel.border = element_rect(fill = NA, color = "black")
-  )
-
-resid_plot_rpe_no_logtransform<-ggplot(data = SessionRPE_residuals_no_logtransform, aes(x = .fitted, y = .resid)) +
-  geom_point(shape = 15, color = "black", size = 2) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   labs(
     x = "Fitted Values",
@@ -1851,7 +1820,6 @@ hlmtable_rpe
 
 # Reporting specific parameters with p-values:
 
-# AFTER
 summary_model_SessionRPE_3 <- summary(model_SessionRPE_3)
 b_dynamics_rpe      <- summary_model_SessionRPE_3$tTable["Dynamics_centered", "Value"]
 p_dynamics_rpe      <- summary_model_SessionRPE_3$tTable["Dynamics_centered", "p-value"]
@@ -1868,7 +1836,7 @@ p_prideXpower_rpe   <- summary_model_SessionRPE_3$tTable["Pride_cm_centered:Powe
 ```
 
 Several interaction terms emerged as significant predictors: When a person had a tendency to more stable attributions, session RPE was reduced (*b* = `r b_dynamics_rpe %>% round(3)`, *p* `r p_dynamics_rpe %>% format_p()`).
-Pride predicted the session rate of perceived exhaustion negatively if positive affect in the last session was high (*b* = `r b_prideXpa_rpe %>% round(3)`, *p* `r p_prideXpa_rpe %>% format_p()`), if people had a more external attribution style (*b* = `r b_prideXlocus_rpe %>% round(3)`, *p* `r p_prideXlocus_rpe %>% format_p()`), and if the affiliation motive (*b* = `r b_prideXaffiliation_rpe %>% round(3)`, *p* = `r p_prideXaffiliation_rpe %>% format_p()`) or power motive (*b* = `r b_prideXpower_rpe %>% round(3)`, *p* `r p_prideXpower_rpe %>% format_p()`) were high.
+Pride predicted the session rate of perceived exhaustion negatively if positive affect in the last session was high (*b* = `r b_prideXpa_rpe %>% round(3)`, *p* `r p_prideXpa_rpe %>% format_p()`), if people had a more external attribution style (*b* = `r b_prideXlocus_rpe %>% round(3)`, *p* `r p_prideXlocus_rpe %>% format_p()`), and if the affiliation motive (*b* = `r b_prideXaffiliation_rpe %>% round(3)`, *p* `r p_prideXaffiliation_rpe %>% format_p()`) or power motive (*b* = `r b_prideXpower_rpe %>% round(3)`, *p* `r p_prideXpower_rpe %>% format_p()`) were high.
 If the achievement motive was high, higher pride also predicted a higher RPE (*b* = `r b_prideXachievement_rpe %>% round(3)`, *p* `r p_prideXachievement_rpe %>% format_p()`).
 
 ```{r}
